@@ -20,14 +20,14 @@ from app.pages import loan_explorer, model_insights, overview, portfolio_risk, r
 from app.services import data_service as ds
 
 st.set_page_config(
-    page_title=APP_TITLE,
-    page_icon="🏦",
+    page_title="Mortgage Risk Dashboard",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# Inject CSS để đồng bộ giao diện
 inject_global_css()
-
 
 def _page_overview():
     app_header(APP_TITLE, APP_SUBTITLE)
