@@ -1,0 +1,58 @@
+# Đường dẫn dữ liệu trên máy bạn, không đưa dữ liệu lên GitHub.
+raw_dir: "E:/Python/data/raw"
+report_dir: "reports"
+
+# Phạm vi nguồn tải về, chưa phải bộ lọc cohort phân tích.
+source_years: [2016, 2017, 2018, 2019, 2020, 2021,
+               2022, 2023, 2024, 2025, 2026]
+
+chunk_size: 100000
+encoding: "utf-8-sig"
+
+# Vị trí cột bắt đầu từ 0, theo File Layout July 2026.
+origination:
+  filename: "sample_orig_{year}.txt"
+  total_columns: 31
+
+  columns:
+    0: credit_score
+    1: first_payment_date
+    3: maturity_date
+    9: original_dti
+    10: original_upb
+    11: original_ltv
+    12: original_interest_rate
+    19: loan_id
+    21: original_loan_term
+
+  dates: [first_payment_date, maturity_date]
+
+  numbers:
+    - credit_score
+    - original_dti
+    - original_upb
+    - original_ltv
+    - original_interest_rate
+    - original_loan_term
+
+performance:
+  filename: "sample_perf_{year}.txt"
+  total_columns: 35
+
+  columns:
+    0: loan_id
+    1: performance_month
+    2: current_actual_upb
+    3: current_delinquency_status
+    4: freddie_loan_age
+    7: modification_flag
+    8: zero_balance_code
+    9: zero_balance_effective_date
+    10: current_interest_rate
+
+  dates: [performance_month, zero_balance_effective_date]
+
+  numbers:
+    - current_actual_upb
+    - freddie_loan_age
+    - current_interest_rate
