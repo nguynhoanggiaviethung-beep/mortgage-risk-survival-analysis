@@ -1720,3 +1720,338 @@ def clean_sample_year(
 
 
     return result
+# =========================================================
+# XUẤT HAI BẢNG CHUẨN HÓA THEO PCCV
+# Chưa tạo event, chưa ghép loan-month model input.
+# =========================================================
+
+def export_standardized_tables():
+    import json
+    from collections import Counter
+    from datetime import datetime
+
+    import pandas as pd
+    import pyarrow.parquet as pq
+
+    from src.config import (
+        PROJECT_ROOT,
+        PROCESSED_DIR,
+        STUDY_YEARS,
+        ensure_directories,
+    )
+
+    cutoff = pd.Timestamp("2026-03-31")
+    reports = PROJECT_ROOT / "reports"
+    ensure_directories()
+    reports.mkdir(parents=True, exist_ok=True)
+
+    # 1. Kiểm tra đủ Parquet đầu vào trước khi làm sạch.
+    inputs = [
+        path
+        for year in STUDY_YEARS
+        for path in [orig_parquet_path(year), perf_parquet_path(year)]
+    ]
+    missing = [str(path) for path in inputs if not path.exists()]
+
+    if missing:
+        raise FileNotFoundError(
+            "Thiếu Parquet đầu vào. Chạy scripts/process_all.py trước:\n"
+            + "\n".join(missing)
+        )
+
+    # 2. Dùng lại cleaning và validation hiện có của nhóm.
+    orig_files, perf_files = [], []
+
+    for year in STUDY_YEARS:
+        clean_sample_year(year, force=True)
+        orig_files.append(MODEL_DIR / f"orig_clean_{year}.parquet")
+        perf_files.append(MODEL_DIR / f"perf_clean_{year}.parquet")
+
+    def scan_files(paths):
+        frame = pl.scan_parquet([str(path) for path in paths])
+
+        # Chuẩn hóa chuỗi, giữ nguyên các cột *_raw để đối chiếu.
+        text_columns = [
+            name
+            for name, dtype in frame.collect_schema().items()
+            if dtype == pl.String and not name.endswith("_raw")
+        ]
+        return frame.with_columns([
+            pl.col(name).str.strip_chars().replace("", None)
+            for name in text_columns
+        ])
+
+    def numeric_raw(name, missing_code, dtype):
+        # Chuyển mã thiếu thành null; giá trị sai định dạng sẽ báo lỗi.
+        text = pl.col(name).cast(pl.String).str.strip_chars()
+        return (
+            pl.when(text.is_in(["", missing_code]))
+            .then(None)
+            .otherwise(text)
+            .cast(dtype, strict=True)
+        )
+
+    def month_date(name):
+        # YYYYMM -> ngày đầu tháng, không phải ngày sự kiện chính xác.
+        return pl.concat_str([
+            pl.col(name), pl.lit("01")
+        ]).str.strptime(pl.Date, "%Y%m%d", strict=True)
+
+    # 3. Hoàn thiện bảng Origination.
+    score = numeric_raw("fico_raw", "9999", pl.Int16)
+    dti = numeric_raw("original_dti_raw", "999", pl.Float64)
+
+    orig = (
+        scan_files(orig_files)
+        .with_columns(
+            pl.col("first_payment_date").alias("first_payment_date_raw"),
+            pl.col("maturity_date").alias("maturity_date_raw"),
+
+            # Mã missing và ngoài miền hợp lệ -> null, không impute.
+            pl.when(score.is_between(300, 850))
+            .then(score).otherwise(None).alias("fico"),
+
+            pl.when(dti.is_between(0, 65))
+            .then(dti).otherwise(None).alias("original_dti"),
+
+            (score.is_not_null() & ~score.is_between(300, 850))
+            .fill_null(False).alias("qc_credit_score_out_of_range"),
+
+            (dti.is_not_null() & ~dti.is_between(0, 65))
+            .fill_null(False).alias("qc_dti_out_of_range"),
+
+            month_date("first_payment_date").alias("first_payment_date"),
+            month_date("maturity_date").alias("maturity_date"),
+        )
+        .with_columns(
+            # Giữ tên fico cho tương thích, thêm tên chuẩn credit_score.
+            pl.col("fico").alias("credit_score"),
+            pl.col("first_payment_date").alias("first_payment_month"),
+            pl.col("maturity_date").alias("maturity_month"),
+            pl.col("vintage_year").alias("origination_vintage"),
+
+            # Operational definition đã khóa trong Project Specification.
+            pl.col("first_payment_date").dt.offset_by("-1mo")
+            .alias("operational_origination_date"),
+        )
+        .with_columns(
+            pl.col("operational_origination_date").dt.year()
+            .alias("operational_origination_year"),
+
+            # Chỉ ghi cờ khác biệt, không tự đổi vintage nguồn.
+            (
+                pl.col("operational_origination_date").dt.year()
+                != pl.col("origination_vintage")
+            ).fill_null(False).alias("qc_proxy_year_differs_from_vintage"),
+
+            (pl.col("original_upb") <= 0)
+            .fill_null(False).alias("qc_original_upb_nonpositive"),
+
+            (pl.col("original_loan_term") <= 0)
+            .fill_null(False).alias("qc_original_term_nonpositive"),
+        )
+        .sort("loan_id")
+    )
+
+    # 4. Hoàn thiện bảng Performance.
+    perf = (
+        scan_files(perf_files)
+        .with_columns(
+            pl.col("zero_balance_effective_date")
+            .alias("zero_balance_effective_date_raw"),
+
+            month_date("monthly_reporting_period")
+            .alias("performance_month"),
+
+            month_date("zero_balance_effective_date")
+            .alias("zero_balance_effective_date"),
+
+            # Không dùng Freddie Loan Age thay analysis_time.
+            pl.col("loan_age").alias("freddie_loan_age"),
+
+            pl.col("delinquency_status_raw").str.strip_chars()
+            .replace("", None).alias("current_delinquency_status"),
+
+            (pl.col("current_actual_upb") < 0)
+            .fill_null(False).alias("qc_current_upb_negative"),
+        )
+    )
+
+    # Tháng báo cáo thiếu phải được xem lại, không âm thầm lọc bỏ.
+    missing_months = perf.select(
+        pl.col("performance_month").is_null().sum()
+    ).collect().item()
+
+    if missing_months:
+        raise ValueError(f"Có {missing_months} dòng thiếu performance_month.")
+
+    perf_before = sum(
+        pq.ParquetFile(path).metadata.num_rows for path in perf_files
+    )
+    orig_before = sum(
+        pq.ParquetFile(path).metadata.num_rows for path in orig_files
+    )
+
+    perf = (
+        perf.filter(
+            pl.col("performance_month") <= pl.lit(cutoff.date())
+        )
+        .sort(["loan_id", "performance_month"])
+    )
+
+    # 5. Ghi file tạm. Chỉ công bố file chính thức sau khi QC thành công.
+    orig_temp = PROCESSED_DIR / "origination.partial.parquet"
+    perf_temp = PROCESSED_DIR / "performance.partial.parquet"
+
+    print("Đang xuất Origination...", flush=True)
+    orig.sink_parquet(orig_temp, compression="zstd")
+
+    print("Đang sắp xếp và xuất Performance...", flush=True)
+    perf.sink_parquet(perf_temp, compression="zstd")
+
+    def check_file(path, keys, allowed_ids=None):
+        """Kiểm tra theo batch, gồm cả khóa trùng qua biên batch."""
+        rows = 0
+        previous_key = None
+        missing_counts = Counter()
+        flags = Counter()
+
+        for batch in pq.ParquetFile(path).iter_batches(batch_size=100000):
+            df = batch.to_pandas()
+
+            if df[keys].isna().any().any():
+                raise ValueError(f"{path.name}: có khóa bị thiếu.")
+
+            index = pd.MultiIndex.from_frame(df[keys])
+            first_key = tuple(df[keys].iloc[0])
+            last_key = tuple(df[keys].iloc[-1])
+
+            if index.has_duplicates:
+                raise ValueError(f"{path.name}: có khóa trùng trong batch.")
+
+            if previous_key is not None and first_key == previous_key:
+                raise ValueError(f"{path.name}: khóa trùng qua biên batch.")
+
+            if not index.is_monotonic_increasing:
+                raise ValueError(f"{path.name}: chưa sắp xếp đúng.")
+
+            if previous_key is not None and first_key < previous_key:
+                raise ValueError(f"{path.name}: thứ tự sai qua biên batch.")
+
+            if allowed_ids is not None:
+                if not df["loan_id"].isin(allowed_ids).all():
+                    raise ValueError("Performance có ID ngoài Origination.")
+
+                months = pd.to_datetime(df["performance_month"])
+                if months.gt(cutoff).any():
+                    raise ValueError("Có tháng báo cáo sau cutoff.")
+
+            rows += len(df)
+            previous_key = last_key
+            missing_counts.update({
+                name: int(count)
+                for name, count in df.isna().sum().items()
+            })
+            flags.update({
+                name: int(df[name].fillna(False).sum())
+                for name in df.columns if name.startswith("qc_")
+            })
+
+        if rows == 0:
+            raise ValueError(f"{path.name}: bảng kết quả rỗng.")
+
+        return {
+            "rows": rows,
+            "missing_keys": 0,
+            "duplicate_keys": 0,
+            "order_violations": 0,
+            "null_counts": dict(missing_counts),
+            "review_flags": dict(flags),
+        }
+
+    # 6. QC hai bảng, không tự drop_duplicates.
+    orig_check = check_file(orig_temp, ["loan_id"])
+
+    # Chỉ giữ tập ID trong RAM; không nạp cả bảng performance.
+    loan_ids = set(
+        pq.read_table(orig_temp, columns=["loan_id"])
+        .column("loan_id").to_pylist()
+    )
+    perf_check = check_file(
+        perf_temp, ["loan_id", "performance_month"], loan_ids
+    )
+
+    if orig_check["rows"] != orig_before:
+        raise ValueError("Số dòng Origination thay đổi ngoài dự kiến.")
+
+    perf_check["rows_before_cutoff"] = perf_before
+    perf_check["rows_removed_after_cutoff"] = (
+        perf_before - perf_check["rows"]
+    )
+    perf_check["performance_ids_not_in_origination"] = 0
+    perf_check["rows_after_cutoff"] = 0
+
+    # 7. Xuất schema, số null và kết quả QC.
+    report = {
+        "run_time": datetime.now().isoformat(timespec="seconds"),
+        "source_years": list(STUDY_YEARS),
+        "cutoff": cutoff.date().isoformat(),
+        "analytical_cohort_filter_applied": False,
+        "origination": orig_check,
+        "performance": perf_check,
+    }
+
+    lines = [
+        "# Báo cáo chuẩn hóa Origination và Performance",
+        "",
+        "Phạm vi: chuẩn hóa nguồn; chưa lọc cohort mô hình, "
+        "chưa gán event và chưa ghép panel.",
+        "",
+        f"Origination: {orig_check['rows']:,} dòng.",
+        f"Performance: {perf_check['rows']:,} dòng.",
+        f"Loại sau cutoff: "
+        f"{perf_check['rows_removed_after_cutoff']:,} dòng.",
+        "",
+        "Kiểm tra khóa, thứ tự và coverage đã qua. "
+        "Các cờ qc_ vẫn cần xem xét; không đồng nghĩa "
+        "toàn bộ model-input QC đã hoàn tất.",
+        "",
+        "Lãi suất/LTV/DTI giữ đơn vị phần trăm của nguồn; "
+        "UPB là USD; kỳ hạn và tuổi báo cáo là tháng.",
+        "Ngày đầu tháng biểu diễn tháng dữ liệu. "
+        "Không điền mean/median và không loại complete-case ở bước này.",
+    ]
+
+    for name, path, result in [
+        ("Origination", orig_temp, orig_check),
+        ("Performance", perf_temp, perf_check),
+    ]:
+        lines += [
+            "", f"## {name}", "",
+            f"Cờ cần xem lại: `{result['review_flags']}`",
+            "", "| Biến | Kiểu dữ liệu | Số null |",
+            "|---|---|---:|",
+        ]
+        for field in pq.ParquetFile(path).schema_arrow:
+            lines.append(
+                f"| {field.name} | {field.type} | "
+                f"{result['null_counts'].get(field.name, 0):,} |"
+            )
+
+    # Giữ các file theo năm cho script cũ; thêm hai file bàn giao tổng hợp.
+    orig_temp.replace(PROCESSED_DIR / "origination.parquet")
+    perf_temp.replace(PROCESSED_DIR / "performance.parquet")
+
+    (reports / "standardization_validation.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (reports / "standardization_report.md").write_text(
+        "\n".join(lines), encoding="utf-8"
+    )
+
+    print("Hoàn thành hai bảng chuẩn hóa. Xem reports/standardization_report.md")
+
+
+if __name__ == "__main__":
+    export_standardized_tables()

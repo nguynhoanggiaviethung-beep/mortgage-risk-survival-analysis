@@ -12,9 +12,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # DATA DIRECTORIES
 # =========================================================
 
-DATA_DIR = PROJECT_ROOT / "data"
+import yaml
 
-RAW_DIR = DATA_DIR / "raw"
+# Dùng chung đường dẫn raw với loader trong data_config.yaml.
+_data_settings = yaml.safe_load(
+    (PROJECT_ROOT / "config/data_config.yaml").read_text(encoding="utf-8")
+)
+RAW_DIR = Path(_data_settings["raw_dir"])
+
+if not RAW_DIR.is_absolute():
+    RAW_DIR = PROJECT_ROOT / RAW_DIR
+
+DATA_DIR = PROJECT_ROOT / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODEL_DIR = DATA_DIR / "model"
 TEMP_DIR = DATA_DIR / "_temp"

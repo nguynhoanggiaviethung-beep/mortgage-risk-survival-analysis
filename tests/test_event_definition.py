@@ -295,30 +295,10 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_d90_default(self):
-
-        loan = self._loan(
-            "L_DEFAULT"
-        )
-
-        self.assertEqual(
-            loan["event_type"],
-            "DEFAULT",
-        )
-
-        self.assertEqual(
-            loan["event_month"],
-            202002,
-        )
-
-        self.assertEqual(
-            loan["event_source"],
-            "D90",
-        )
-
-
-    # =====================================================
-    # TEST PREPAYMENT
-    # =====================================================
+        # D90 không đủ để gán default theo định nghĩa nhóm.
+        loan = self._loan("L_DEFAULT")
+        self.assertEqual(loan["event_type"], "CENSOR")
+        self.assertEqual(loan["event_source"], "RIGHT_CENSOR")
 
     def test_prepayment(self):
 
@@ -373,20 +353,10 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_ra_default(self):
-
-        loan = self._loan(
-            "L_RA"
-        )
-
-        self.assertEqual(
-            loan["event_type"],
-            "DEFAULT",
-        )
-
-        self.assertEqual(
-            loan["event_source"],
-            "RA",
-        )
+        # RA không tự tạo default.
+        loan = self._loan("L_RA")
+        self.assertEqual(loan["event_type"], "CENSOR")
+        self.assertEqual(loan["event_source"], "RIGHT_CENSOR")
 
 
     # =====================================================
@@ -420,22 +390,10 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_same_month_default_wins(self):
-
-        loan = self._loan(
-            "L_CONFLICT"
-        )
-
-        self.assertEqual(
-            loan["event_type"],
-            "DEFAULT",
-        )
-
-        self.assertTrue(
-            loan[
-                "same_month_default_prepay_flag"
-            ]
-        )
-
+        # D90 + ZB01 không phải hai competing events theo đặc tả.
+        loan = self._loan("L_CONFLICT")
+        self.assertEqual(loan["event_type"], "PREPAYMENT")
+        self.assertFalse(loan["same_month_default_prepay_flag"])
 
     # =====================================================
     # TEST ADMIN CENSOR
@@ -483,7 +441,129 @@ class TestEventDefinition(unittest.TestCase):
             .n_unique(),
             7,
         )
+    def _with_code(self, code, effective="202002"):
+        return self.perf.with_columns(
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202002)
+            )
+            .then(pl.lit(code, dtype=pl.String))
+            .otherwise(pl.col("zero_balance_code"))
+            .alias("zero_balance_code"),
 
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202002)
+            )
+            .then(pl.lit(effective, dtype=pl.String))
+            .otherwise(pl.col("zero_balance_effective_date"))
+            .alias("zero_balance_effective_date"),
+        )
+
+    def test_all_known_codes(self):
+        expected = {
+            "01": "PREPAYMENT",
+            "02": "CENSOR",
+            "03": "DEFAULT",
+            "09": "DEFAULT",
+            "15": "CENSOR",
+            "16": "CENSOR",
+            "96": "CENSOR",
+        }
+        for code, event_type in expected.items():
+            with self.subTest(code=code):
+                result = build_event_mapping(
+                    self.orig, self._with_code(code)
+                ).collect()
+                loan = result.filter(
+                    pl.col("loan_id") == "L_ZB03"
+                ).to_dicts()[0]
+                self.assertEqual(loan["event_type"], event_type)
+                self.assertEqual(loan["raw_zero_balance_code"], code)
+
+    def test_unknown_code_rejected(self):
+        with self.assertRaises(ValueError):
+            build_event_mapping(
+                self.orig, self._with_code("88")
+            ).collect()
+
+    def test_missing_effective_date_rejected(self):
+        with self.assertRaises(ValueError):
+            build_event_mapping(
+                self.orig, self._with_code("03", None)
+            ).collect()
+
+    def test_effective_date_used(self):
+        result = build_event_mapping(
+            self.orig, self._with_code("03", "202003")
+        ).collect()
+        loan = result.filter(
+            pl.col("loan_id") == "L_ZB03"
+        ).to_dicts()[0]
+
+        self.assertEqual(loan["event_month"], 202003)
+        self.assertEqual(loan["event_date"], date(2020, 3, 1))
+        self.assertTrue(loan["event_after_last_report_flag"])
+
+    def test_event_after_cutoff_not_counted(self):
+        result = build_event_mapping(
+            self.orig, self._with_code("03", "202604")
+        ).collect()
+        loan = result.filter(
+            pl.col("loan_id") == "L_ZB03"
+        ).to_dicts()[0]
+
+        self.assertEqual(loan["event_type"], "CENSOR")
+        self.assertEqual(loan["event_month"], 202002)
+
+    def test_first_event_wins(self):
+        # Trả trước tháng 1, mã default tháng 2: chọn trả trước.
+        perf = self.perf.with_columns(
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202001)
+            )
+            .then(pl.lit("01"))
+            .otherwise(pl.col("zero_balance_code"))
+            .alias("zero_balance_code"),
+
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202001)
+            )
+            .then(pl.lit("202001"))
+            .otherwise(pl.col("zero_balance_effective_date"))
+            .alias("zero_balance_effective_date"),
+        )
+        result = build_event_mapping(self.orig, perf).collect()
+        loan = result.filter(
+            pl.col("loan_id") == "L_ZB03"
+        ).to_dicts()[0]
+        self.assertEqual(loan["event_type"], "PREPAYMENT")
+        self.assertEqual(loan["event_month"], 202001)
+
+    def test_conflicting_first_event_rejected(self):
+        # Hai dòng báo cáo khác tháng nhưng cùng tháng hiệu lực,
+        # một mã 01, một mã 03: phải báo lỗi.
+        perf = self.perf.with_columns(
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202001)
+            )
+            .then(pl.lit("01"))
+            .otherwise(pl.col("zero_balance_code"))
+            .alias("zero_balance_code"),
+
+            pl.when(
+                (pl.col("loan_id") == "L_ZB03")
+                & (pl.col("reporting_period_num") == 202001)
+            )
+            .then(pl.lit("202002"))
+            .otherwise(pl.col("zero_balance_effective_date"))
+            .alias("zero_balance_effective_date"),
+        )
+        with self.assertRaises(ValueError):
+            build_event_mapping(self.orig, perf).collect()
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,453 +66,211 @@ def build_event_mapping(
     perf: pl.LazyFrame,
 ) -> pl.LazyFrame:
     """
-    Build exactly one first event per loan with Performance data.
+    Mapping theo Project Specification của nhóm:
+    03/09 -> DEFAULT
+    01    -> PREPAYMENT
+    02/15/16/96 -> CENSOR
 
-    EVENT TYPES
-    -----------
-    1 = DEFAULT
-        Primary:
-            first delinquency_num >= 3
-
-        Fallback:
-            first RA
-            first Zero Balance 02 / 03 / 09
-
-    2 = PREPAYMENT
-        Zero Balance 01 while remaining legal maturity > 0.
-
-        If remaining maturity is unavailable, compare
-        Zero Balance Effective Month with maturity_month.
-
-    0 = CENSOR
-        Maturity
-        Administrative termination 15 / 16 / 96
-        Right censoring at last observed month
-
-    EVENT TIMING
-    ------------
-    - Among known events, the earliest event month wins.
-    - If Default and Prepayment occur in the same month:
-        DEFAULT wins and same_month_default_prepay_flag = True.
-    - last_observed_month is used only when no known event exists.
-      It must NOT override a known Zero Balance Effective Date merely
-      because that effective date is later than the last reporting month.
+    Không dùng D90/RA để tự gán default.
+    event_month là tháng kết thúc quan sát, kể cả censor.
+    Đầu vào: orig_clean_YYYY và perf_clean_YYYY hiện có.
     """
+    cutoff = 202603
+    known_codes = ["01", "02", "03", "09", "15", "16", "96"]
 
-    # =====================================================
-    # ORIGINATION INFORMATION NEEDED FOR ZB01 FALLBACK
-    # =====================================================
-
-    orig_info = orig.select(
-        [
-            "loan_id",
-            "vintage_year",
-            "first_payment_month",
-            "maturity_month",
-        ]
+    # Chỉ đọc những cột cần dùng.
+    monthly = perf.select(
+        "loan_id",
+        "reporting_period_num",
+        "zero_balance_code",
+        "zero_balance_effective_date",
+    ).with_columns(
+        pl.col("zero_balance_code")
+        .cast(pl.String)
+        .str.strip_chars()
+        .replace("", None)
+        .alias("_code"),
+        pl.col("zero_balance_effective_date")
+        .cast(pl.String)
+        .str.strip_chars()
+        .replace("", None)
+        .str.strptime(pl.Date, "%Y%m", strict=False)
+        .alias("_effective_date"),
+        pl.col("reporting_period_num")
+        .cast(pl.String)
+        .str.strptime(pl.Date, "%Y%m", strict=False)
+        .alias("_report_date"),
     )
 
-    # =====================================================
-    # JOIN PERFORMANCE WITH ORIGINATION
-    # =====================================================
+    # Không âm thầm bỏ tháng báo cáo bị thiếu/sai định dạng.
+    bad_dates = (
+        monthly.filter(pl.col("_report_date").is_null())
+        .select("loan_id", "reporting_period_num")
+        .limit(5)
+        .collect()
+    )
+    if bad_dates.height:
+        raise ValueError(f"Tháng báo cáo thiếu hoặc sai:\n{bad_dates}")
 
-    monthly = (
-        perf
-        .join(
-            orig_info,
-            on="loan_id",
-            how="left",
-            suffix="_orig",
-        )
-        .with_columns(
-            # Official Zero Balance Effective Date first.
-            # If unavailable, fall back to Monthly Reporting Period.
-            pl.coalesce(
-                [
-                    pl.col("zero_balance_effective_date")
-                    .cast(pl.Int32, strict=False),
-                    pl.col("reporting_period_num"),
-                ]
-            ).alias("_zb_event_month")
-        )
-        .with_columns(
-            # ZB 01 = prepaid OR matured.
-            (
-                (pl.col("zero_balance_code") == "01")
-                &
-                (
-                    (pl.col("remaining_months_maturity") > 0)
-                    |
-                    (
-                        pl.col("remaining_months_maturity").is_null()
-                        & pl.col("zero_balance_effective_month").is_not_null()
-                        & pl.col("maturity_month").is_not_null()
-                        & (
-                            pl.col("zero_balance_effective_month")
-                            < pl.col("maturity_month")
-                        )
-                    )
-                )
-            ).alias("_is_prepay_candidate"),
-
-            (
-                (pl.col("zero_balance_code") == "01")
-                &
-                (
-                    (pl.col("remaining_months_maturity") <= 0)
-                    |
-                    (
-                        pl.col("remaining_months_maturity").is_null()
-                        & pl.col("zero_balance_effective_month").is_not_null()
-                        & pl.col("maturity_month").is_not_null()
-                        & (
-                            pl.col("zero_balance_effective_month")
-                            >= pl.col("maturity_month")
-                        )
-                    )
-                )
-            ).alias("_is_maturity_candidate"),
-        )
+    monthly = monthly.filter(
+        pl.col("reporting_period_num") <= cutoff
     )
 
-    # =====================================================
-    # FIRST CANDIDATE MONTH PER LOAN
-    # =====================================================
-
-    candidates = (
-        monthly
-        .group_by("loan_id")
-        .agg(
-            # Loan information
-            pl.col("vintage_year").first().alias("vintage_year"),
-            pl.col("first_payment_month").first().alias("first_payment_month"),
-            pl.col("maturity_month").first().alias("maturity_month"),
-
-            # Primary default
-            _first_month_when(
-                pl.col("delinquency_num") >= 3,
-                pl.col("reporting_period_num"),
-            ).alias("first_d90_month"),
-
-            # Default fallback: REO Acquisition
-            _first_month_when(
-                pl.col("is_ra"),
-                pl.col("reporting_period_num"),
-            ).alias("first_ra_month"),
-
-            # Credit-related Zero Balance codes
-            _first_month_when(
-                pl.col("zero_balance_code") == "02",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb02_month"),
-
-            _first_month_when(
-                pl.col("zero_balance_code") == "03",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb03_month"),
-
-            _first_month_when(
-                pl.col("zero_balance_code") == "09",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb09_month"),
-
-            # Prepayment / maturity
-            _first_month_when(
-                pl.col("_is_prepay_candidate"),
-                pl.col("_zb_event_month"),
-            ).alias("first_prepay_month"),
-
-            _first_month_when(
-                pl.col("_is_maturity_candidate"),
-                pl.col("_zb_event_month"),
-            ).alias("first_maturity_month"),
-
-            # Administrative termination
-            _first_month_when(
-                pl.col("zero_balance_code") == "15",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb15_month"),
-
-            _first_month_when(
-                pl.col("zero_balance_code") == "16",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb16_month"),
-
-            _first_month_when(
-                pl.col("zero_balance_code") == "96",
-                pl.col("_zb_event_month"),
-            ).alias("first_zb96_month"),
-
-            # Last observed monthly record
-            pl.col("reporting_period_num")
-            .max()
-            .alias("last_observed_month"),
+    # Mã chưa có trong đặc tả phải được kiểm tra, không tự gán censor.
+    unknown = (
+        monthly.filter(
+            pl.col("_code").is_not_null()
+            & ~pl.col("_code").is_in(known_codes)
         )
+        .select("loan_id", "_code")
+        .limit(5)
+        .collect()
     )
+    if unknown.height:
+        raise ValueError(f"Zero Balance Code chưa có mapping:\n{unknown}")
 
-    # =====================================================
-    # DEFAULT / ADMIN CANDIDATE MONTHS
-    # =====================================================
-
-    candidates = candidates.with_columns(
-        pl.min_horizontal(
-            [
-                pl.col("first_d90_month"),
-                pl.col("first_ra_month"),
-                pl.col("first_zb02_month"),
-                pl.col("first_zb03_month"),
-                pl.col("first_zb09_month"),
-            ]
-        ).alias("first_default_month"),
-
-        pl.min_horizontal(
-            [
-                pl.col("first_zb15_month"),
-                pl.col("first_zb16_month"),
-                pl.col("first_zb96_month"),
-            ]
-        ).alias("first_admin_termination_month"),
-    )
-
-    # =====================================================
-    # DEFAULT SOURCE
-    #
-    # Priority only resolves evidence occurring in the same
-    # earliest month:
-    # D90 > RA > ZB02 > ZB03 > ZB09
-    # =====================================================
-
-    candidates = candidates.with_columns(
-        pl.when(pl.col("first_default_month").is_null())
-        .then(None)
-        .when(pl.col("first_default_month") == pl.col("first_d90_month"))
-        .then(pl.lit("D90"))
-        .when(pl.col("first_default_month") == pl.col("first_ra_month"))
-        .then(pl.lit("RA"))
-        .when(pl.col("first_default_month") == pl.col("first_zb02_month"))
-        .then(pl.lit("ZB02"))
-        .when(pl.col("first_default_month") == pl.col("first_zb03_month"))
-        .then(pl.lit("ZB03"))
-        .otherwise(pl.lit("ZB09"))
-        .alias("default_source")
-    )
-
-    # =====================================================
-    # ADMIN SOURCE
-    # =====================================================
-
-    candidates = candidates.with_columns(
-        pl.when(pl.col("first_admin_termination_month").is_null())
-        .then(None)
-        .when(
-            pl.col("first_admin_termination_month")
-            == pl.col("first_zb15_month")
+    missing_dates = (
+        monthly.filter(
+            pl.col("_code").is_not_null()
+            & pl.col("_effective_date").is_null()
         )
-        .then(pl.lit("ZB15_WHOLE_LOAN_SALE"))
-        .when(
-            pl.col("first_admin_termination_month")
-            == pl.col("first_zb16_month")
-        )
-        .then(pl.lit("ZB16_REPERFORMING_SECURITIZATION"))
-        .otherwise(pl.lit("ZB96_DEFECT"))
-        .alias("admin_source")
+        .select("loan_id", "_code", "zero_balance_effective_date")
+        .limit(5)
+        .collect()
     )
+    if missing_dates.height:
+        raise ValueError(
+            "Có mã kết thúc nhưng thiếu/sai ngày hiệu lực. "
+            "Cần kiểm tra trước khi gán event:\n"
+            f"{missing_dates}"
+        )
 
-    # =====================================================
-    # SAME-MONTH DEFAULT / PREPAYMENT CONFLICT
-    # =====================================================
-
-    candidates = candidates.with_columns(
+    monthly = monthly.with_columns(
         (
-            pl.col("first_default_month").is_not_null()
-            & pl.col("first_prepay_month").is_not_null()
-            & (
-                pl.col("first_default_month")
-                == pl.col("first_prepay_month")
-            )
-        ).alias("same_month_default_prepay_flag")
+            pl.col("_effective_date").dt.year() * 100
+            + pl.col("_effective_date").dt.month()
+        ).cast(pl.Int32).alias("_effective_month")
     )
 
-    # =====================================================
-    # FINAL EVENT MONTH
-    #
-    # IMPORTANT FIX:
-    # First choose among KNOWN events only.
-    #
-    # Only when there is no known event do we use
-    # last_observed_month for right censoring.
-    #
-    # This prevents a valid Zero Balance Effective Date in a
-    # later calendar month from being incorrectly overwritten
-    # by the previous last reporting month.
-    # =====================================================
+    # Thông tin theo dõi: chỉ khoản có performance trước cutoff.
+    followup = monthly.group_by("loan_id").agg(
+        pl.col("reporting_period_num").min().alias("first_observed_month"),
+        pl.col("reporting_period_num").max().alias("last_observed_month"),
+    )
 
+    # Chỉ sự kiện có hiệu lực trong cửa sổ nghiên cứu.
     candidates = (
-        candidates
-        .with_columns(
-            pl.min_horizontal(
-                [
-                    pl.col("first_default_month"),
-                    pl.col("first_prepay_month"),
-                    pl.col("first_maturity_month"),
-                    pl.col("first_admin_termination_month"),
-                ]
-            ).alias("_first_known_event_month")
+        monthly.filter(
+            pl.col("_code").is_not_null()
+            & (pl.col("_effective_month") <= cutoff)
         )
         .with_columns(
-            pl.coalesce(
-                [
-                    pl.col("_first_known_event_month"),
-                    pl.col("last_observed_month"),
-                ]
-            ).alias("event_month")
+            pl.when(pl.col("_code").is_in(["03", "09"]))
+            .then(pl.lit("DEFAULT"))
+            .when(pl.col("_code") == "01")
+            .then(pl.lit("PREPAYMENT"))
+            .otherwise(pl.lit("CENSOR"))
+            .alias("_type")
         )
     )
 
-    # =====================================================
-    # FINAL EVENT TYPE
-    #
-    # Earliest known month wins.
-    # Same-month precedence:
-    # DEFAULT > PREPAYMENT > MATURITY > ADMIN > RIGHT CENSOR
-    # =====================================================
-
-    result = candidates.with_columns(
-        pl.when(
-            pl.col("first_default_month").is_not_null()
-            & (pl.col("event_month") == pl.col("first_default_month"))
-        )
-        .then(pl.lit("DEFAULT"))
-        .when(
-            pl.col("first_prepay_month").is_not_null()
-            & (pl.col("event_month") == pl.col("first_prepay_month"))
-        )
-        .then(pl.lit("PREPAYMENT"))
-        .otherwise(pl.lit("CENSOR"))
-        .alias("event_type"),
-
-        pl.when(
-            pl.col("first_default_month").is_not_null()
-            & (pl.col("event_month") == pl.col("first_default_month"))
-        )
-        .then(pl.lit(EVENT_DEFAULT))
-        .when(
-            pl.col("first_prepay_month").is_not_null()
-            & (pl.col("event_month") == pl.col("first_prepay_month"))
-        )
-        .then(pl.lit(EVENT_PREPAYMENT))
-        .otherwise(pl.lit(EVENT_CENSOR))
-        .cast(pl.Int8)
-        .alias("event_code"),
+    earliest = candidates.group_by("loan_id").agg(
+        pl.col("_effective_month").min().alias("_first_event_month")
     )
 
-    # =====================================================
-    # EVENT SOURCE / CENSOR REASON
-    # =====================================================
-
-    result = result.with_columns(
-        pl.when(pl.col("event_type") == "DEFAULT")
-        .then(pl.col("default_source"))
-        .when(pl.col("event_type") == "PREPAYMENT")
-        .then(pl.lit("ZB01_PREPAYMENT"))
-        .when(
-            pl.col("first_maturity_month").is_not_null()
-            & (pl.col("event_month") == pl.col("first_maturity_month"))
+    first = (
+        candidates.join(earliest, on="loan_id", how="inner")
+        .filter(
+            pl.col("_effective_month") == pl.col("_first_event_month")
         )
-        .then(pl.lit("MATURITY"))
-        .when(
-            pl.col("first_admin_termination_month").is_not_null()
-            & (
-                pl.col("event_month")
-                == pl.col("first_admin_termination_month")
-            )
-        )
-        .then(pl.col("admin_source"))
-        .otherwise(pl.lit("RIGHT_CENSOR"))
-        .alias("event_source")
     )
 
-    # =====================================================
-    # RAW ZERO BALANCE CODE AT FINAL EVENT
-    # =====================================================
-
-    result = result.with_columns(
-        pl.when(pl.col("event_source").str.starts_with("ZB01"))
-        .then(pl.lit("01"))
-        .when(pl.col("event_source") == "ZB02")
-        .then(pl.lit("02"))
-        .when(pl.col("event_source") == "ZB03")
-        .then(pl.lit("03"))
-        .when(pl.col("event_source") == "ZB09")
-        .then(pl.lit("09"))
-        .when(pl.col("event_source") == "ZB15_WHOLE_LOAN_SALE")
-        .then(pl.lit("15"))
-        .when(
-            pl.col("event_source")
-            == "ZB16_REPERFORMING_SECURITIZATION"
+    # Không tự quyết default thắng khi các nguyên nhân mâu thuẫn.
+    conflicts = (
+        first.group_by("loan_id")
+        .agg(pl.col("_code").n_unique().alias("n_codes"))
+        .filter(pl.col("n_codes") > 1)
+        .limit(5)
+        .collect()
+    )
+    if conflicts.height:
+        raise ValueError(
+            "Có nhiều mã kết thúc khác nhau tại tháng sự kiện đầu tiên; "
+            f"cần kiểm tra:\n{conflicts}"
         )
-        .then(pl.lit("16"))
-        .when(pl.col("event_source") == "ZB96_DEFECT")
-        .then(pl.lit("96"))
-        .otherwise(None)
-        .alias("raw_zero_balance_code")
+
+    selected = first.group_by("loan_id").agg(
+        pl.col("_effective_month").first().alias("_selected_month"),
+        pl.col("_code").first().alias("raw_zero_balance_code"),
+        pl.col("_type").first().alias("_selected_type"),
+        # Chênh lệch với tháng báo cáo được giữ để audit.
+        (pl.col("_effective_month") != pl.col("reporting_period_num"))
+        .any()
+        .alias("effective_reporting_month_mismatch"),
     )
 
-    # =====================================================
-    # FINAL FLAGS + EVENT DATE
-    # =====================================================
-
-    result = result.with_columns(
-        (pl.col("event_type") == "DEFAULT").alias("default_flag"),
-        (pl.col("event_type") == "PREPAYMENT").alias("prepayment_flag"),
-        (pl.col("event_type") == "CENSOR").alias("censor_flag"),
-        _month_number_to_date("event_month").alias("event_date"),
-    )
-
-    # =====================================================
-    # OUTPUT
-    # =====================================================
-
-    return (
-        result
-        .select(
-            [
+    result = (
+        followup.join(selected, on="loan_id", how="left")
+        .join(
+            orig.select(
                 "loan_id",
                 "vintage_year",
                 "first_payment_month",
                 "maturity_month",
-                "event_type",
-                "event_code",
-                "event_month",
-                "event_date",
-                "event_source",
-                "default_flag",
-                "prepayment_flag",
-                "censor_flag",
-                "same_month_default_prepay_flag",
-                "raw_zero_balance_code",
-
-                # Audit columns
-                "first_d90_month",
-                "first_ra_month",
-                "first_zb02_month",
-                "first_zb03_month",
-                "first_zb09_month",
-                "first_default_month",
-                "default_source",
-                "first_prepay_month",
-                "first_maturity_month",
-                "first_zb15_month",
-                "first_zb16_month",
-                "first_zb96_month",
-                "first_admin_termination_month",
-                "admin_source",
-                "last_observed_month",
-            ]
+            ),
+            on="loan_id",
+            how="left",
+            validate="m:1",
         )
+        .with_columns(
+            pl.coalesce("_selected_month", "last_observed_month")
+            .alias("event_month"),
+            pl.col("_selected_type").fill_null("CENSOR")
+            .alias("event_type"),
+            pl.col("effective_reporting_month_mismatch")
+            .fill_null(False),
+        )
+        .with_columns(
+            pl.when(pl.col("event_type") == "DEFAULT")
+            .then(pl.lit(EVENT_DEFAULT))
+            .when(pl.col("event_type") == "PREPAYMENT")
+            .then(pl.lit(EVENT_PREPAYMENT))
+            .otherwise(pl.lit(EVENT_CENSOR))
+            .cast(pl.Int8)
+            .alias("event_code"),
+
+            pl.when(pl.col("raw_zero_balance_code").is_null())
+            .then(pl.lit("RIGHT_CENSOR"))
+            .when(pl.col("raw_zero_balance_code") == "01")
+            .then(pl.lit("ZB01_PREPAYMENT"))
+            .when(pl.col("raw_zero_balance_code") == "15")
+            .then(pl.lit("ZB15_WHOLE_LOAN_SALE"))
+            .when(pl.col("raw_zero_balance_code") == "16")
+            .then(pl.lit("ZB16_REPERFORMING_SECURITIZATION"))
+            .when(pl.col("raw_zero_balance_code") == "96")
+            .then(pl.lit("ZB96_DEFECT"))
+            .otherwise(
+                pl.concat_str([pl.lit("ZB"), pl.col("raw_zero_balance_code")])
+            )
+            .alias("event_source"),
+
+            _month_number_to_date("event_month").alias("event_date"),
+            (pl.col("event_type") == "DEFAULT").alias("default_flag"),
+            (pl.col("event_type") == "PREPAYMENT").alias("prepayment_flag"),
+            (pl.col("event_type") == "CENSOR").alias("censor_flag"),
+            pl.lit(False).alias("same_month_default_prepay_flag"),
+        )
+        .with_columns(
+            (pl.col("event_month") < pl.col("first_observed_month"))
+            .alias("event_before_entry_flag"),
+            (pl.col("event_month") > pl.col("last_observed_month"))
+            .alias("event_after_last_report_flag"),
+        )
+        .drop("_selected_month", "_selected_type")
         .sort("loan_id")
     )
 
+    return result
 
 # =========================================================
 # BUILD ONE VINTAGE
