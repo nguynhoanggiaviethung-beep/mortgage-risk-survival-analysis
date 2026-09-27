@@ -1,55 +1,37 @@
 import streamlit as st
 
 def init_filter_state():
-    """Khởi tạo trạng thái bộ lọc trong Session State nếu chưa có."""
-    if "filters" not in st.session_state:
-        st.session_state.filters = {
-            "vintages": ["2022", "2023", "2024"],
-            "loan_terms": [15, 30],
-            "credit_score_range": (600, 850),
-            "ltv_range": (0.0, 1.0),
-            "dti_range": (0.0, 0.6),
+    if "global_filters" not in st.session_state:
+        st.session_state.global_filters = {
+            "vintages": ["All"],
+            "terms": ["All"],
+            "credit_score_band": "All",
+            "ltv_band": "All",
+            "dti_band": "All",
+            "cutoff_date": None
         }
 
-def render_sidebar_filters():
-    """Render bộ lọc ở Sidebar và lưu thông số vào Session State."""
+def render_filter_bar():
     init_filter_state()
+    st.sidebar.markdown("---")
     st.sidebar.markdown("### 🎛️ Bộ lọc danh mục")
     
-    # 1. Vintage Filter
-    vintages = st.sidebar.multiselect(
-        "Năm/Kỳ giải ngân (Vintage)",
-        options=["2022", "2023", "2024"],
-        default=st.session_state.filters["vintages"]
-    )
+    vintages = st.sidebar.multiselect("Năm giải ngân (Vintage)", ["All", "2022", "2023", "2024"], default=["All"])
+    terms = st.sidebar.multiselect("Kỳ hạn (Loan Term)", ["All", "15 Y", "30 Y"], default=["All"])
+    cs_band = st.sidebar.selectbox("Credit Score Band", ["All", "<650", "650-699", "700-749", "750+"])
+    ltv_band = st.sidebar.selectbox("LTV Band", ["All", "<70%", "70%-80%", ">80%"])
+    dti_band = st.sidebar.selectbox("DTI Band", ["All", "<36%", "36%-45%", ">45%"])
     
-    # 2. Loan Term
-    terms = st.sidebar.multiselect(
-        "Kỳ hạn vay (Loan Term - Năm)",
-        options=[15, 30],
-        default=st.session_state.filters["loan_terms"]
-    )
-    
-    # 3. Sliders
-    cs_range = st.sidebar.slider("Thang điểm tín dụng (Credit Score)", 300, 850, st.session_state.filters["credit_score_range"])
-    ltv_range = st.sidebar.slider("Tỷ lệ LTV", 0.0, 1.0, st.session_state.filters["ltv_range"], step=0.05)
-    
-    # Reset Button
-    if st.sidebar.button("🔄 Đặt lại bộ lọc", use_container_width=True):
-        st.session_state.filters = {
-            "vintages": ["2022", "2023", "2024"],
-            "loan_terms": [15, 30],
-            "credit_score_range": (600, 850),
-            "ltv_range": (0.0, 1.0),
-            "dti_range": (0.0, 0.6),
+    if st.sidebar.button("🔄 Reset Bộ Lọc", use_container_width=True):
+        st.session_state.global_filters = {
+            "vintages": ["All"], "terms": ["All"],
+            "credit_score_band": "All", "ltv_band": "All",
+            "dti_band": "All", "cutoff_date": None
         }
         st.rerun()
-
-    # Cập nhật state
-    st.session_state.filters.update({
-        "vintages": vintages,
-        "loan_terms": terms,
-        "credit_score_range": cs_range,
-        "ltv_range": ltv_range
+        
+    st.session_state.global_filters.update({
+        "vintages": vintages, "terms": terms,
+        "credit_score_band": cs_band, "ltv_band": ltv_band, "dti_band": dti_band
     })
-    return st.session_state.filters
+    return st.session_state.global_filters

@@ -52,23 +52,4 @@ def get_portfolio_summary(vintage="All", score_band="All", ltv_band="All", dti_b
     if df.empty:
         return {}
     return df.iloc[0].to_dict() if len(df) > 0 else {}
-def get_pd_results(*args, **kwargs):
-    return load_data("pd_results")
-
-def get_survival_results(*args, **kwargs):
-    return load_data("survival_results")
-
-def get_risk_driver_results(*args, **kwargs):
-    return load_data("risk_driver_results")
-
-def get_vintage_results(*args, **kwargs):
-    return load_data("vintage_results")
-
-def get_loan_profile(*args, **kwargs):
-    return load_data("loan_profile")
-
-def get_loan_timeline(*args, **kwargs):
-    return load_data("loan_timeline")
-
-def get_model_diagnostics(*args, **kwargs):
-    return load_data("model_diagnostics")
+    
