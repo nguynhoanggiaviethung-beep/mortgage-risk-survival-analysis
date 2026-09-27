@@ -1,0 +1,14 @@
+pandas
+polars
+numpy
+scipy
+scikit-learn
+matplotlib
+seaborn
+lifelines
+jupyter
+pyarrow
+streamlit
+plotly
+openpyxl
+pytest

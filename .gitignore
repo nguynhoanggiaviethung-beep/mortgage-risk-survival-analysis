@@ -1,0 +1,77 @@
+# =========================
+# DATA
+# =========================
+
+data/raw/*
+data/interim/*
+data/processed/*
+
+# Keep folder structure
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+
+# =========================
+# PYTHON
+# =========================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+
+
+# =========================
+# JUPYTER
+# =========================
+
+.ipynb_checkpoints/
+
+
+# =========================
+# IDE
+# =========================
+
+.vscode/
+.idea/
+
+
+# =========================
+# OS
+# =========================
+
+.DS_Store
+Thumbs.db
+
+
+# =========================
+# ENVIRONMENT
+# =========================
+
+.env
+
+
+# =========================
+# GENERATED RESULTS
+# =========================
+
+# Uncomment if results become too large
+# results/tables/*
+# results/figures/*
+
+
+# =========================
+# LARGE MODEL FILES
+# =========================
+
+*.pkl
+*.pickle
+*.joblib
+
