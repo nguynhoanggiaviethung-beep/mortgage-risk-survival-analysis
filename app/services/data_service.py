@@ -1,51 +1,74 @@
 from pathlib import Path
-import json
 import pandas as pd
 import streamlit as st
 
-MOCK_DIR = Path(__file__).resolve().parent.parent / "mock"
+# Định vị thư mục query/ ở gốc dự án
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+QUERY_DIR = BASE_DIR / "query"
 
-class DataService:
-    @staticmethod
-    @st.cache_data(show_spinner=False)
-    def load_dataset(dataset_name: str):
-        """Đọc mock dataset (.parquet hoặc .json/.csv) từ app/mock/."""
-        try:
-            # 1. Thử tìm file Parquet
-            parquet_path = MOCK_DIR / f"{dataset_name}.parquet"
-            if parquet_path.exists():
-                return pd.read_parquet(parquet_path), "OK"
-            
-            # 2. Thử tìm file JSON
-            json_path = MOCK_DIR / f"{dataset_name}.json"
-            if json_path.exists():
-                with open(json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return (pd.DataFrame(data) if isinstance(data, list) else data), "OK"
-            
-            # 3. Thử tìm file CSV
-            csv_path = MOCK_DIR / f"{dataset_name}.csv"
-            if csv_path.exists():
-                return pd.read_csv(csv_path), "OK"
+def get_query_dir() -> Path:
+    """Trả về đường dẫn tuyệt đối của thư mục query."""
+    return QUERY_DIR
 
-            return None, "EMPTY"
-        except Exception as e:
-            return None, f"ERROR: {str(e)}"
-
-def render_status_sidebar():
-    """Hiển thị trạng thái dữ liệu ở Sidebar chuẩn contract."""
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Trạng thái Mock Data (`app/mock/`)")
-    
-    datasets = [
-        "portfolio_summary", "pd_results", "survival_results",
-        "risk_driver_results", "vintage_results", "loan_profile",
-        "loan_timeline", "model_diagnostics"
+def dataset_status() -> dict:
+    """
+    Kiểm tra trạng thái tồn tại của 8 file dữ liệu trong thư mục query/.
+    Trả về dictionary với key là tên dataset và value là True/False.
+    """
+    required_datasets = [
+        "portfolio_summary",
+        "pd_results",
+        "survival_results",
+        "risk_driver_results",
+        "vintage_results",
+        "loan_profile",
+        "loan_timeline",
+        "model_diagnostics"
     ]
     
-    for ds in datasets:
-        _, status = DataService.load_dataset(ds)
-        if status == "OK":
-            st.sidebar.markdown(f"🟢 `{ds}`")
-        else:
-            st.sidebar.markdown(f"🔴 `{ds}`")
+    status = {}
+    for ds in required_datasets:
+        csv_path = QUERY_DIR / f"{ds}.csv"
+        parquet_path = QUERY_DIR / f"{ds}.parquet"
+        status[ds] = csv_path.exists() or parquet_path.exists()
+        
+    return status
+
+@st.cache_data(show_spinner=False)
+def load_data(dataset_name: str) -> pd.DataFrame:
+    """Đọc dữ liệu từ file CSV hoặc Parquet trong thư mục query/."""
+    csv_path = QUERY_DIR / f"{dataset_name}.csv"
+    parquet_path = QUERY_DIR / f"{dataset_name}.parquet"
+    
+    if csv_path.exists():
+        return pd.read_csv(csv_path)
+    elif parquet_path.exists():
+        return pd.read_parquet(parquet_path)
+    else:
+        return pd.DataFrame()
+def get_portfolio_summary(vintage="All", score_band="All", ltv_band="All", dti_band="All", term="All"):
+    """Lấy dữ liệu portfolio_summary và trả về dưới dạng dict hoặc DataFrame."""
+    df = load_data("portfolio_summary")
+    if df.empty:
+        return {}
+    return df.iloc[0].to_dict() if len(df) > 0 else {}
+def get_pd_results(*args, **kwargs):
+    return load_data("pd_results")
+
+def get_survival_results(*args, **kwargs):
+    return load_data("survival_results")
+
+def get_risk_driver_results(*args, **kwargs):
+    return load_data("risk_driver_results")
+
+def get_vintage_results(*args, **kwargs):
+    return load_data("vintage_results")
+
+def get_loan_profile(*args, **kwargs):
+    return load_data("loan_profile")
+
+def get_loan_timeline(*args, **kwargs):
+    return load_data("loan_timeline")
+
+def get_model_diagnostics(*args, **kwargs):
+    return load_data("model_diagnostics")
