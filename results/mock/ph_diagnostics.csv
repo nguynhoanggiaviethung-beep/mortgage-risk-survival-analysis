@@ -1,0 +1,11 @@
+model_type,endpoint,variable,time_transform,test_statistic,degrees_of_freedom,p_value,alpha,ph_status,test_method
+cox_ph,default,fico,rank,5.714364427037648,1,0.016826655046124163,0.05,FLAGGED,survival::cox.zph
+cox_ph,default,original_ltv,rank,2.1907184989779687,1,0.1388445344507812,0.05,PASS,survival::cox.zph
+cox_ph,default,original_dti,rank,0.19370597005908646,1,0.6598499046200296,0.05,PASS,survival::cox.zph
+cox_ph,default,original_interest_rate,rank,0.26796009250673775,1,0.6047034534453419,0.05,PASS,survival::cox.zph
+cox_ph,default,original_loan_term,rank,1.1357293138303466,1,0.2865565570109668,0.05,PASS,survival::cox.zph
+cox_ph,default,fico,km,6.408099175130441,1,0.01136009635255121,0.05,FLAGGED,survival::cox.zph
+cox_ph,default,original_ltv,km,2.430993823214047,1,0.11895745944745216,0.05,PASS,survival::cox.zph
+cox_ph,default,original_dti,km,0.423695147615699,1,0.5150989726015925,0.05,PASS,survival::cox.zph
+cox_ph,default,original_interest_rate,km,0.25253800829741185,1,0.6152936303995855,0.05,PASS,survival::cox.zph
+cox_ph,default,original_loan_term,km,0.9402708406299145,1,0.3322081981128353,0.05,PASS,survival::cox.zph

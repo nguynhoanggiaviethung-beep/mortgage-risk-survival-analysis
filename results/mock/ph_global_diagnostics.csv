@@ -1,0 +1,3 @@
+model_type,endpoint,time_transform,test_statistic,degrees_of_freedom,p_value,alpha,ph_status,test_method
+cox_ph,default,rank,8.322113450145128,5,0.13935410165571083,0.05,PASS,survival::cox.zph
+cox_ph,default,km,9.150253679283113,5,0.10321904977013958,0.05,PASS,survival::cox.zph

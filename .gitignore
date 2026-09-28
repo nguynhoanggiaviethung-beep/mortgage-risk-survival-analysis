@@ -46,6 +46,21 @@ data/_temp/*
 *.parquet
 *.zip
 
+# Step 1 deterministic regression fixture
+!tests/fixtures/mock_loan_month.parquet
+
+# Step 2 deterministic Kaplan-Meier mock result
+!results/mock/km_results.parquet
+
+# Step 3 deterministic Cox fixture and mock results
+!tests/fixtures/mock_cox_input.parquet
+!results/mock/cox_results.parquet
+!results/mock/cox_diagnostics.parquet
+
+# Step 4 deterministic R survival::cox.zph mock results
+!results/mock/ph_diagnostics.csv
+!results/mock/ph_global_diagnostics.csv
+
 
 # =========================================================
 # TEMP FILES

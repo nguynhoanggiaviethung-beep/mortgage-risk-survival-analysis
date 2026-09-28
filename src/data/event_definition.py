@@ -8,12 +8,30 @@ from src.config import MODEL_DIR
 
 
 # =========================================================
+# STUDY SETTINGS
+# =========================================================
+
+PERFORMANCE_CUTOFF = 202603
+
+KNOWN_ZERO_BALANCE_CODES = [
+    "01",
+    "02",
+    "03",
+    "09",
+    "15",
+    "16",
+    "96",
+]
+
+
+# =========================================================
 # EVENT LABELS
 # =========================================================
 
 EVENT_CENSOR = 0
 EVENT_DEFAULT = 1
 EVENT_PREPAYMENT = 2
+
 
 ALLOWED_EVENT_SOURCES_AFTER_LAST_REPORT = [
     "ZB01_PREPAYMENT",
@@ -36,6 +54,7 @@ def _first_month_when(
     month_column: pl.Expr,
 ) -> pl.Expr:
     """Return the earliest YYYYMM value satisfying condition."""
+
     return (
         pl.when(condition)
         .then(month_column)
@@ -45,7 +64,8 @@ def _first_month_when(
 
 
 def _month_number_to_date(column: str) -> pl.Expr:
-    """Convert integer YYYYMM into Date on the first day of month."""
+    """Convert integer YYYYMM into Date on first day of month."""
+
     return (
         pl.col(column)
         .cast(pl.String)
@@ -67,72 +87,127 @@ def build_event_mapping(
     exclude_missing_effective_date: bool = False,
 ) -> pl.LazyFrame:
     """
-    Mapping theo Project Specification của nhóm:
-    03/09 -> DEFAULT
-    01    -> PREPAYMENT
+    Event mapping theo Project Specification:
+
+    03 / 09 -> DEFAULT
+    01      -> PREPAYMENT
     02/15/16/96 -> CENSOR
 
-    Không dùng D90/RA để tự gán default.
-    event_month là tháng kết thúc quan sát, kể cả censor.
-    Đầu vào: orig_clean_YYYY và perf_clean_YYYY hiện có.
-    """
-    cutoff = 202603
-    known_codes = ["01", "02", "03", "09", "15", "16", "96"]
+    D90 và RA KHÔNG tự tạo Default.
 
-    # Chỉ đọc những cột cần dùng.
-    monthly = perf.select(
-        "loan_id",
-        "reporting_period_num",
-        "zero_balance_code",
-        "zero_balance_effective_date",
-    ).with_columns(
-        pl.col("zero_balance_code")
-        .cast(pl.String)
-        .str.strip_chars()
-        .replace("", None)
-        .alias("_code"),
-        pl.col("zero_balance_effective_date")
-        .cast(pl.String)
-        .str.strip_chars()
-        .replace("", None)
-        .str.strptime(pl.Date, "%Y%m", strict=False)
-        .alias("_effective_date"),
-        pl.col("reporting_period_num")
-        .cast(pl.String)
-        .str.strptime(pl.Date, "%Y%m", strict=False)
-        .alias("_report_date"),
+    Event month:
+    - ZBC event -> Zero Balance Effective Date
+    - Không có event -> last observed performance month
+
+    Loan có ZBC nhưng thiếu/sai Zero Balance Effective Date:
+    - Không impute
+    - Không tự chuyển thành censor
+    - Loại toàn bộ loan khỏi event sample nếu
+      exclude_missing_effective_date=True
+    """
+
+    cutoff = PERFORMANCE_CUTOFF
+    known_codes = KNOWN_ZERO_BALANCE_CODES
+
+    # =====================================================
+    # SELECT REQUIRED PERFORMANCE FIELDS
+    # =====================================================
+
+    monthly = (
+        perf.select(
+            "loan_id",
+            "reporting_period_num",
+            "zero_balance_code",
+            "zero_balance_effective_date",
+        )
+        .with_columns(
+            pl.col("zero_balance_code")
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .alias("_code"),
+
+            pl.col("zero_balance_effective_date")
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .str.strptime(
+                pl.Date,
+                "%Y%m",
+                strict=False,
+            )
+            .alias("_effective_date"),
+
+            pl.col("reporting_period_num")
+            .cast(pl.String)
+            .str.strptime(
+                pl.Date,
+                "%Y%m",
+                strict=False,
+            )
+            .alias("_report_date"),
+        )
     )
 
-    # Không âm thầm bỏ tháng báo cáo bị thiếu/sai định dạng.
+    # =====================================================
+    # REPORTING MONTH VALIDATION
+    # =====================================================
+
     bad_dates = (
-        monthly.filter(pl.col("_report_date").is_null())
-        .select("loan_id", "reporting_period_num")
+        monthly
+        .filter(
+            pl.col("_report_date").is_null()
+        )
+        .select(
+            "loan_id",
+            "reporting_period_num",
+        )
         .limit(5)
         .collect()
     )
-    if bad_dates.height:
-        raise ValueError(f"Tháng báo cáo thiếu hoặc sai:\n{bad_dates}")
 
+    if bad_dates.height:
+        raise ValueError(
+            "Tháng báo cáo thiếu hoặc sai:\n"
+            f"{bad_dates}"
+        )
+
+    # Chỉ giữ Performance trong cửa sổ nghiên cứu.
     monthly = monthly.filter(
         pl.col("reporting_period_num") <= cutoff
     )
 
-    # Mã chưa có trong đặc tả phải được kiểm tra, không tự gán censor.
+    # =====================================================
+    # UNKNOWN ZERO BALANCE CODE
+    # =====================================================
+
     unknown = (
-        monthly.filter(
+        monthly
+        .filter(
             pl.col("_code").is_not_null()
             & ~pl.col("_code").is_in(known_codes)
         )
-        .select("loan_id", "_code")
+        .select(
+            "loan_id",
+            "_code",
+        )
         .limit(5)
         .collect()
     )
-    if unknown.height:
-        raise ValueError(f"Zero Balance Code chưa có mapping:\n{unknown}")
 
-    # Lấy đầy đủ các bản ghi thiếu/sai ngày để audit.
+    if unknown.height:
+        raise ValueError(
+            "Zero Balance Code chưa có mapping:\n"
+            f"{unknown}"
+        )
+
+    # =====================================================
+    # MISSING / INVALID EFFECTIVE DATE
+    # =====================================================
+
     missing_dates = (
-        monthly.filter(
+        monthly
+        .filter(
             pl.col("_code").is_not_null()
             & pl.col("_effective_date").is_null()
         )
@@ -146,15 +221,26 @@ def build_event_mapping(
     )
 
     if missing_dates.height:
+
         if not exclude_missing_effective_date:
             raise ValueError(
                 "Có mã kết thúc nhưng thiếu/sai ngày hiệu lực:\n"
                 f"{missing_dates.head(5)}"
             )
 
-        # Loại toàn bộ lịch sử của khoản bị lỗi khỏi mẫu event.
-        # Không chỉ bỏ dòng lỗi rồi gán khoản đó thành right-censor.
-        excluded_ids = missing_dates.select("loan_id").unique()
+        # Một loan có event nhưng thiếu ngày hiệu lực thì
+        # loại TOÀN BỘ loan khỏi event sample.
+        #
+        # Không:
+        # - tự điền reporting month
+        # - tự censor
+        # - sửa raw data
+
+        excluded_ids = (
+            missing_dates
+            .select("loan_id")
+            .unique()
+        )
 
         print(
             f"Tách {excluded_ids.height:,} khoản thiếu/sai "
@@ -168,72 +254,167 @@ def build_event_mapping(
             how="anti",
         )
 
+    # =====================================================
+    # EFFECTIVE MONTH
+    # =====================================================
+
     monthly = monthly.with_columns(
         (
             pl.col("_effective_date").dt.year() * 100
             + pl.col("_effective_date").dt.month()
-        ).cast(pl.Int32).alias("_effective_month")
+        )
+        .cast(pl.Int32)
+        .alias("_effective_month")
     )
 
-    # Thông tin theo dõi: chỉ khoản có performance trước cutoff.
-    followup = monthly.group_by("loan_id").agg(
-        pl.col("reporting_period_num").min().alias("first_observed_month"),
-        pl.col("reporting_period_num").max().alias("last_observed_month"),
+    # =====================================================
+    # FOLLOW-UP INFORMATION
+    # =====================================================
+
+    followup = (
+        monthly
+        .group_by("loan_id")
+        .agg(
+            pl.col("reporting_period_num")
+            .min()
+            .alias("first_observed_month"),
+
+            pl.col("reporting_period_num")
+            .max()
+            .alias("last_observed_month"),
+        )
     )
 
-    # Chỉ sự kiện có hiệu lực trong cửa sổ nghiên cứu.
+    # =====================================================
+    # EVENT CANDIDATES
+    # =====================================================
+
     candidates = (
-        monthly.filter(
+        monthly
+        .filter(
             pl.col("_code").is_not_null()
-            & (pl.col("_effective_month") <= cutoff)
+            & (
+                pl.col("_effective_month")
+                <= cutoff
+            )
         )
         .with_columns(
-            pl.when(pl.col("_code").is_in(["03", "09"]))
-            .then(pl.lit("DEFAULT"))
-            .when(pl.col("_code") == "01")
-            .then(pl.lit("PREPAYMENT"))
-            .otherwise(pl.lit("CENSOR"))
+            pl.when(
+                pl.col("_code").is_in(
+                    ["03", "09"]
+                )
+            )
+            .then(
+                pl.lit("DEFAULT")
+            )
+            .when(
+                pl.col("_code") == "01"
+            )
+            .then(
+                pl.lit("PREPAYMENT")
+            )
+            .otherwise(
+                pl.lit("CENSOR")
+            )
             .alias("_type")
         )
     )
 
-    earliest = candidates.group_by("loan_id").agg(
-        pl.col("_effective_month").min().alias("_first_event_month")
+    # =====================================================
+    # EARLIEST EVENT
+    # =====================================================
+
+    earliest = (
+        candidates
+        .group_by("loan_id")
+        .agg(
+            pl.col("_effective_month")
+            .min()
+            .alias("_first_event_month")
+        )
     )
 
     first = (
-        candidates.join(earliest, on="loan_id", how="inner")
+        candidates
+        .join(
+            earliest,
+            on="loan_id",
+            how="inner",
+        )
         .filter(
-            pl.col("_effective_month") == pl.col("_first_event_month")
+            pl.col("_effective_month")
+            == pl.col("_first_event_month")
         )
     )
 
-    # Không tự quyết default thắng khi các nguyên nhân mâu thuẫn.
+    # =====================================================
+    # SAME-MONTH EVENT CONFLICT
+    # =====================================================
+
     conflicts = (
-        first.group_by("loan_id")
-        .agg(pl.col("_code").n_unique().alias("n_codes"))
-        .filter(pl.col("n_codes") > 1)
+        first
+        .group_by("loan_id")
+        .agg(
+            pl.col("_code")
+            .n_unique()
+            .alias("n_codes")
+        )
+        .filter(
+            pl.col("n_codes") > 1
+        )
         .limit(5)
         .collect()
     )
+
     if conflicts.height:
         raise ValueError(
-            "Có nhiều mã kết thúc khác nhau tại tháng sự kiện đầu tiên; "
-            f"cần kiểm tra:\n{conflicts}"
+            "Có nhiều mã kết thúc khác nhau tại "
+            "tháng sự kiện đầu tiên; cần kiểm tra:\n"
+            f"{conflicts}"
         )
 
-    selected = first.group_by("loan_id").agg(
-        pl.col("_effective_month").first().alias("_selected_month"),
-        pl.col("_code").first().alias("raw_zero_balance_code"),
-        pl.col("_type").first().alias("_selected_type"),
-        # Chênh lệch với tháng báo cáo được giữ để audit.
-        (pl.col("_effective_month") != pl.col("reporting_period_num"))
-        .any()
-        .alias("effective_reporting_month_mismatch"),
+    # =====================================================
+    # SELECT EVENT
+    # =====================================================
+
+    selected = (
+        first
+        .group_by("loan_id")
+        .agg(
+            pl.col("_effective_month")
+            .first()
+            .alias("_selected_month"),
+
+            pl.col("_code")
+            .first()
+            .alias("raw_zero_balance_code"),
+
+            pl.col("_type")
+            .first()
+            .alias("_selected_type"),
+
+            (
+                pl.col("_effective_month")
+                != pl.col("reporting_period_num")
+            )
+            .any()
+            .alias(
+                "effective_reporting_month_mismatch"
+            ),
+        )
     )
 
+    # =====================================================
+    # FINAL EVENT TABLE
+    # =====================================================
+
     result = (
-        followup.join(selected, on="loan_id", how="left")
+        followup
+        .join(
+            selected,
+            on="loan_id",
+            how="left",
+        )
         .join(
             orig.select(
                 "loan_id",
@@ -245,55 +426,175 @@ def build_event_mapping(
             how="left",
             validate="m:1",
         )
+
+        # -------------------------------------------------
+        # EVENT MONTH + EVENT TYPE
+        # -------------------------------------------------
+
         .with_columns(
-            pl.coalesce("_selected_month", "last_observed_month")
+            pl.coalesce(
+                "_selected_month",
+                "last_observed_month",
+            )
             .alias("event_month"),
-            pl.col("_selected_type").fill_null("CENSOR")
+
+            pl.col("_selected_type")
+            .fill_null("CENSOR")
             .alias("event_type"),
-            pl.col("effective_reporting_month_mismatch")
+
+            pl.col(
+                "effective_reporting_month_mismatch"
+            )
             .fill_null(False),
         )
+
+        # -------------------------------------------------
+        # EVENT CODE + SOURCE + FLAGS
+        # -------------------------------------------------
+
         .with_columns(
-            pl.when(pl.col("event_type") == "DEFAULT")
-            .then(pl.lit(EVENT_DEFAULT))
-            .when(pl.col("event_type") == "PREPAYMENT")
-            .then(pl.lit(EVENT_PREPAYMENT))
-            .otherwise(pl.lit(EVENT_CENSOR))
+
+            pl.when(
+                pl.col("event_type")
+                == "DEFAULT"
+            )
+            .then(
+                pl.lit(EVENT_DEFAULT)
+            )
+            .when(
+                pl.col("event_type")
+                == "PREPAYMENT"
+            )
+            .then(
+                pl.lit(EVENT_PREPAYMENT)
+            )
+            .otherwise(
+                pl.lit(EVENT_CENSOR)
+            )
             .cast(pl.Int8)
             .alias("event_code"),
 
-            pl.when(pl.col("raw_zero_balance_code").is_null())
-            .then(pl.lit("RIGHT_CENSOR"))
-            .when(pl.col("raw_zero_balance_code") == "01")
-            .then(pl.lit("ZB01_PREPAYMENT"))
-            .when(pl.col("raw_zero_balance_code") == "15")
-            .then(pl.lit("ZB15_WHOLE_LOAN_SALE"))
-            .when(pl.col("raw_zero_balance_code") == "16")
-            .then(pl.lit("ZB16_REPERFORMING_SECURITIZATION"))
-            .when(pl.col("raw_zero_balance_code") == "96")
-            .then(pl.lit("ZB96_DEFECT"))
+            pl.when(
+                pl.col(
+                    "raw_zero_balance_code"
+                ).is_null()
+            )
+            .then(
+                pl.lit("RIGHT_CENSOR")
+            )
+            .when(
+                pl.col(
+                    "raw_zero_balance_code"
+                ) == "01"
+            )
+            .then(
+                pl.lit("ZB01_PREPAYMENT")
+            )
+            .when(
+                pl.col(
+                    "raw_zero_balance_code"
+                ) == "15"
+            )
+            .then(
+                pl.lit(
+                    "ZB15_WHOLE_LOAN_SALE"
+                )
+            )
+            .when(
+                pl.col(
+                    "raw_zero_balance_code"
+                ) == "16"
+            )
+            .then(
+                pl.lit(
+                    "ZB16_REPERFORMING_SECURITIZATION"
+                )
+            )
+            .when(
+                pl.col(
+                    "raw_zero_balance_code"
+                ) == "96"
+            )
+            .then(
+                pl.lit("ZB96_DEFECT")
+            )
             .otherwise(
-                pl.concat_str([pl.lit("ZB"), pl.col("raw_zero_balance_code")])
+                pl.concat_str(
+                    [
+                        pl.lit("ZB"),
+                        pl.col(
+                            "raw_zero_balance_code"
+                        ),
+                    ]
+                )
             )
             .alias("event_source"),
 
-            _month_number_to_date("event_month").alias("event_date"),
-            (pl.col("event_type") == "DEFAULT").alias("default_flag"),
-            (pl.col("event_type") == "PREPAYMENT").alias("prepayment_flag"),
-            (pl.col("event_type") == "CENSOR").alias("censor_flag"),
-            pl.lit(False).alias("same_month_default_prepay_flag"),
+            _month_number_to_date(
+                "event_month"
+            )
+            .alias("event_date"),
+
+            (
+                pl.col("event_type")
+                == "DEFAULT"
+            )
+            .alias("default_flag"),
+
+            (
+                pl.col("event_type")
+                == "PREPAYMENT"
+            )
+            .alias("prepayment_flag"),
+
+            (
+                pl.col("event_type")
+                == "CENSOR"
+            )
+            .alias("censor_flag"),
+
+            pl.lit(False)
+            .alias(
+                "same_month_default_prepay_flag"
+            ),
         )
+
+        # -------------------------------------------------
+        # FOLLOW-UP AUDIT FLAGS
+        # -------------------------------------------------
+
         .with_columns(
-            (pl.col("event_month") < pl.col("first_observed_month"))
-            .alias("event_before_entry_flag"),
-            (pl.col("event_month") > pl.col("last_observed_month"))
-            .alias("event_after_last_report_flag"),
+            (
+                pl.col("event_month")
+                < pl.col(
+                    "first_observed_month"
+                )
+            )
+            .alias(
+                "event_before_entry_flag"
+            ),
+
+            (
+                pl.col("event_month")
+                > pl.col(
+                    "last_observed_month"
+                )
+            )
+            .alias(
+                "event_after_last_report_flag"
+            ),
         )
-        .drop("_selected_month", "_selected_type")
+
+        .drop(
+            "_selected_month",
+            "_selected_type",
+        )
+
         .sort("loan_id")
     )
 
     return result
+
 
 # =========================================================
 # BUILD ONE VINTAGE
@@ -306,10 +607,29 @@ def build_event_mapping_year(
 
     year = int(year)
 
-    orig_path = MODEL_DIR / f"orig_clean_{year}.parquet"
-    perf_path = MODEL_DIR / f"perf_clean_{year}.parquet"
-    output_path = MODEL_DIR / f"event_map_{year}.parquet"
-    temp_path = MODEL_DIR / f"event_map_{year}.tmp.parquet"
+    orig_path = (
+        MODEL_DIR
+        / f"orig_clean_{year}.parquet"
+    )
+
+    perf_path = (
+        MODEL_DIR
+        / f"perf_clean_{year}.parquet"
+    )
+
+    output_path = (
+        MODEL_DIR
+        / f"event_map_{year}.parquet"
+    )
+
+    temp_path = (
+        MODEL_DIR
+        / f"event_map_{year}.tmp.parquet"
+    )
+
+    # =====================================================
+    # INPUT CHECK
+    # =====================================================
 
     if not orig_path.exists():
         raise FileNotFoundError(
@@ -326,38 +646,74 @@ def build_event_mapping_year(
             f"✓ event_map_{year}.parquet "
             f"đã tồn tại, bỏ qua."
         )
+
         return output_path
 
-    temp_path.unlink(missing_ok=True)
+    temp_path.unlink(
+        missing_ok=True
+    )
 
-    orig = pl.scan_parquet(orig_path)
-    perf = pl.scan_parquet(perf_path)
+    orig = pl.scan_parquet(
+        orig_path
+    )
+
+    perf = pl.scan_parquet(
+        perf_path
+    )
 
     from src.config import PROJECT_ROOT
 
-    # Lưu các khoản bị tách trước khi xây dựng bảng event.
-    report_dir = PROJECT_ROOT / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
+    # =====================================================
+    # AUDIT DIRECTORY
+    # =====================================================
+
+    report_dir = (
+        PROJECT_ROOT
+        / "reports"
+    )
+
+    report_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # =====================================================
+    # MISSING EFFECTIVE DATE AUDIT
+    # =====================================================
 
     missing_date_audit = (
-        perf.filter(pl.col("reporting_period_num") <= 202603)
+        perf
+        .filter(
+            pl.col("reporting_period_num")
+            <= PERFORMANCE_CUTOFF
+        )
         .with_columns(
-            pl.col("zero_balance_code")
+            pl.col(
+                "zero_balance_code"
+            )
             .cast(pl.String)
             .str.strip_chars()
             .replace("", None)
             .alias("_code"),
 
-            pl.col("zero_balance_effective_date")
+            pl.col(
+                "zero_balance_effective_date"
+            )
             .cast(pl.String)
             .str.strip_chars()
             .replace("", None)
-            .str.strptime(pl.Date, "%Y%m", strict=False)
+            .str.strptime(
+                pl.Date,
+                "%Y%m",
+                strict=False,
+            )
             .alias("_effective_date"),
         )
         .filter(
             pl.col("_code").is_not_null()
-            & pl.col("_effective_date").is_null()
+            & pl.col(
+                "_effective_date"
+            ).is_null()
         )
         .select(
             "loan_id",
@@ -366,15 +722,24 @@ def build_event_mapping_year(
             "zero_balance_effective_date",
         )
         .with_columns(
-            pl.lit("MISSING_OR_INVALID_EFFECTIVE_DATE")
-            .alias("exclusion_reason")
+            pl.lit(
+                "MISSING_OR_INVALID_EFFECTIVE_DATE"
+            )
+            .alias(
+                "exclusion_reason"
+            )
         )
         .collect()
     )
 
     missing_date_audit.write_csv(
-        report_dir / f"event_missing_date_{year}.csv"
+        report_dir
+        / f"event_missing_date_{year}.csv"
     )
+
+    # =====================================================
+    # BUILD EVENT MAP
+    # =====================================================
 
     event_map = build_event_mapping(
         orig,
@@ -387,7 +752,9 @@ def build_event_mapping_year(
         compression="zstd",
     )
 
-    temp_path.replace(output_path)
+    temp_path.replace(
+        output_path
+    )
 
     return output_path
 
@@ -396,18 +763,54 @@ def build_event_mapping_year(
 # VALIDATE ONE EVENT MAP
 # =========================================================
 
-def validate_event_mapping_year(year: int) -> dict:
+def validate_event_mapping_year(
+    year: int,
+) -> dict:
 
     year = int(year)
 
-    perf_path = MODEL_DIR / f"perf_clean_{year}.parquet"
-    event_path = MODEL_DIR / f"event_map_{year}.parquet"
+    perf_path = (
+        MODEL_DIR
+        / f"perf_clean_{year}.parquet"
+    )
 
-    perf = pl.scan_parquet(perf_path)
-    events = pl.scan_parquet(event_path)
+    event_path = (
+        MODEL_DIR
+        / f"event_map_{year}.parquet"
+    )
+
+    if not perf_path.exists():
+        raise FileNotFoundError(
+            f"Không tìm thấy:\n{perf_path}"
+        )
+
+    if not event_path.exists():
+        raise FileNotFoundError(
+            f"Không tìm thấy:\n{event_path}"
+        )
+
+    perf = pl.scan_parquet(
+        perf_path
+    )
+
+    events = pl.scan_parquet(
+        event_path
+    )
+
+    # =====================================================
+    # PERFORMANCE LOANS INSIDE STUDY WINDOW
+    # =====================================================
+
+    perf_window = (
+        perf
+        .filter(
+            pl.col("reporting_period_num")
+            <= PERFORMANCE_CUTOFF
+        )
+    )
 
     perf_loans = (
-        perf
+        perf_window
         .select(
             pl.col("loan_id")
             .n_unique()
@@ -416,10 +819,62 @@ def validate_event_mapping_year(year: int) -> dict:
         .collect()["n"][0]
     )
 
+    # =====================================================
+    # COUNT LOANS EXCLUDED FOR MISSING EFFECTIVE DATE
+    # =====================================================
+
+    excluded_missing_effective_date_loans = (
+        perf_window
+        .with_columns(
+            pl.col(
+                "zero_balance_code"
+            )
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .alias("_code"),
+
+            pl.col(
+                "zero_balance_effective_date"
+            )
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .str.strptime(
+                pl.Date,
+                "%Y%m",
+                strict=False,
+            )
+            .alias("_effective_date"),
+        )
+        .filter(
+            pl.col("_code").is_not_null()
+            & pl.col(
+                "_effective_date"
+            ).is_null()
+        )
+        .select(
+            pl.col("loan_id")
+            .n_unique()
+            .alias("n")
+        )
+        .collect()["n"][0]
+    )
+
+    expected_event_rows = (
+        perf_loans
+        - excluded_missing_effective_date_loans
+    )
+
+    # =====================================================
+    # EVENT ROW COUNTS
+    # =====================================================
+
     event_rows = (
         events
         .select(
-            pl.len().alias("n")
+            pl.len()
+            .alias("n")
         )
         .collect()["n"][0]
     )
@@ -438,15 +893,25 @@ def validate_event_mapping_year(year: int) -> dict:
         events
         .group_by("loan_id")
         .len()
-        .filter(pl.col("len") > 1)
-        .select(pl.len().alias("n"))
+        .filter(
+            pl.col("len") > 1
+        )
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
+
+    # =====================================================
+    # EVENT TYPE VALIDATION
+    # =====================================================
 
     invalid_event_types = (
         events
         .filter(
-            ~pl.col("event_type").is_in(
+            ~pl.col("event_type")
+            .is_in(
                 [
                     "DEFAULT",
                     "PREPAYMENT",
@@ -454,56 +919,89 @@ def validate_event_mapping_year(year: int) -> dict:
                 ]
             )
         )
-        .select(pl.len().alias("n"))
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
 
     missing_event_month = (
         events
         .filter(
-            pl.col("event_month").is_null()
+            pl.col(
+                "event_month"
+            ).is_null()
         )
-        .select(pl.len().alias("n"))
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
 
     # =====================================================
     # EVENT AFTER LAST REPORT
     #
-    # A known ZB/maturity event may validly have an official
-    # effective month later than last_observed_month.
+    # Known official ZB effective dates may be later than
+    # last_observed_month.
     #
-    # D90 / RA / RIGHT_CENSOR are NOT allowed to do this.
+    # Unknown/non-official sources are not allowed.
     # =====================================================
 
     known_event_after_last_observation = (
         events
         .filter(
-            (pl.col("event_month") > pl.col("last_observed_month"))
-            & pl.col("event_source").is_in(
+            (
+                pl.col("event_month")
+                > pl.col(
+                    "last_observed_month"
+                )
+            )
+            & pl.col(
+                "event_source"
+            ).is_in(
                 ALLOWED_EVENT_SOURCES_AFTER_LAST_REPORT
             )
         )
-        .select(pl.len().alias("n"))
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
 
     event_after_last_observation = (
         events
         .filter(
-            (pl.col("event_month") > pl.col("last_observed_month"))
-            &
-            ~pl.col("event_source").is_in(
+            (
+                pl.col("event_month")
+                > pl.col(
+                    "last_observed_month"
+                )
+            )
+            & ~pl.col(
+                "event_source"
+            ).is_in(
                 ALLOWED_EVENT_SOURCES_AFTER_LAST_REPORT
             )
         )
-        .select(pl.len().alias("n"))
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
 
+    # =====================================================
+    # EVENT COUNTS
+    # =====================================================
+
     counts = (
         events
-        .group_by("event_type")
+        .group_by(
+            "event_type"
+        )
         .len()
         .collect()
     )
@@ -511,9 +1009,14 @@ def validate_event_mapping_year(year: int) -> dict:
     same_month_conflicts = (
         events
         .filter(
-            pl.col("same_month_default_prepay_flag")
+            pl.col(
+                "same_month_default_prepay_flag"
+            )
         )
-        .select(pl.len().alias("n"))
+        .select(
+            pl.len()
+            .alias("n")
+        )
         .collect()["n"][0]
     )
 
@@ -521,10 +1024,26 @@ def validate_event_mapping_year(year: int) -> dict:
     # CRITICAL VALIDATION
     # =====================================================
 
-    if perf_loans != event_rows:
+    # QUAN TRỌNG:
+    #
+    # Event map KHÔNG bắt buộc bằng toàn bộ Performance loans.
+    #
+    # Những loan có ZBC nhưng thiếu/sai
+    # zero_balance_effective_date đã được chủ động loại khỏi
+    # event sample.
+    #
+    # expected_event_rows =
+    # performance loans
+    # - excluded missing effective-date loans
+
+    if event_rows != expected_event_rows:
         raise RuntimeError(
-            f"{year}: Event rows "
-            f"không bằng số Performance loans."
+            f"{year}: Event rows không đúng. "
+            f"Expected {expected_event_rows:,} "
+            f"= {perf_loans:,} Performance loans "
+            f"- {excluded_missing_effective_date_loans:,} "
+            f"excluded missing-effective-date loans; "
+            f"actual event rows = {event_rows:,}."
         )
 
     if event_rows != event_unique_loans:
@@ -541,53 +1060,144 @@ def validate_event_mapping_year(year: int) -> dict:
 
     if invalid_event_types != 0:
         raise RuntimeError(
-            f"{year}: Có event_type không hợp lệ."
+            f"{year}: Có event_type "
+            f"không hợp lệ."
         )
 
     if missing_event_month != 0:
         raise RuntimeError(
-            f"{year}: Có event_month bị null."
+            f"{year}: Có event_month "
+            f"bị null."
         )
 
     if event_after_last_observation != 0:
         raise RuntimeError(
-            f"{year}: Có event không hợp lệ xảy ra sau "
-            f"last observed month."
+            f"{year}: Có event không hợp lệ "
+            f"xảy ra sau last observed month."
         )
+
+    # =====================================================
+    # RESULT
+    # =====================================================
 
     count_dict = {
         row["event_type"]: row["len"]
-        for row in counts.iter_rows(named=True)
+        for row in counts.iter_rows(
+            named=True
+        )
     }
 
     result = {
         "year": year,
-        "loans": event_rows,
-        "default": count_dict.get("DEFAULT", 0),
-        "prepayment": count_dict.get("PREPAYMENT", 0),
-        "censor": count_dict.get("CENSOR", 0),
-        "same_month_conflicts": same_month_conflicts,
+
+        "performance_loans":
+            perf_loans,
+
+        "excluded_missing_effective_date_loans":
+            excluded_missing_effective_date_loans,
+
+        "expected_event_rows":
+            expected_event_rows,
+
+        "loans":
+            event_rows,
+
+        "default":
+            count_dict.get(
+                "DEFAULT",
+                0,
+            ),
+
+        "prepayment":
+            count_dict.get(
+                "PREPAYMENT",
+                0,
+            ),
+
+        "censor":
+            count_dict.get(
+                "CENSOR",
+                0,
+            ),
+
+        "same_month_conflicts":
+            same_month_conflicts,
+
         "known_event_after_last_observation":
             known_event_after_last_observation,
-        "status": "PASS",
+
+        "status":
+            "PASS",
     }
 
-    print("\n" + "=" * 70)
-    print(f"EVENT MAPPING VALIDATION - {year}")
-    print("=" * 70)
-    print(f"Loans:                             {result['loans']:,}")
-    print(f"DEFAULT:                           {result['default']:,}")
-    print(f"PREPAYMENT:                        {result['prepayment']:,}")
-    print(f"CENSOR:                            {result['censor']:,}")
+    # =====================================================
+    # PRINT VALIDATION REPORT
+    # =====================================================
+
     print(
-        "Same-month conflicts:              "
+        "\n"
+        + "=" * 70
+    )
+
+    print(
+        f"EVENT MAPPING VALIDATION - {year}"
+    )
+
+    print(
+        "=" * 70
+    )
+
+    print(
+        f"Performance loans:                  "
+        f"{result['performance_loans']:,}"
+    )
+
+    print(
+        f"Excluded missing effective date:    "
+        f"{result['excluded_missing_effective_date_loans']:,}"
+    )
+
+    print(
+        f"Expected event-map rows:             "
+        f"{result['expected_event_rows']:,}"
+    )
+
+    print(
+        f"Event-map loans:                     "
+        f"{result['loans']:,}"
+    )
+
+    print(
+        f"DEFAULT:                             "
+        f"{result['default']:,}"
+    )
+
+    print(
+        f"PREPAYMENT:                          "
+        f"{result['prepayment']:,}"
+    )
+
+    print(
+        f"CENSOR:                              "
+        f"{result['censor']:,}"
+    )
+
+    print(
+        f"Same-month conflicts:                "
         f"{result['same_month_conflicts']:,}"
     )
+
     print(
-        "Known event after last report:     "
+        f"Known event after last report:       "
         f"{result['known_event_after_last_observation']:,}"
     )
-    print("\n✓ EVENT MAPPING VALIDATION PASS")
-    print("=" * 70)
+
+    print(
+        "\n✓ EVENT MAPPING VALIDATION PASS"
+    )
+
+    print(
+        "=" * 70
+    )
 
     return result
