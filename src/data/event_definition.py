@@ -64,6 +64,7 @@ def _month_number_to_date(column: str) -> pl.Expr:
 def build_event_mapping(
     orig: pl.LazyFrame,
     perf: pl.LazyFrame,
+    exclude_missing_effective_date: bool = False,
 ) -> pl.LazyFrame:
     """
     Mapping theo Project Specification của nhóm:
@@ -129,20 +130,42 @@ def build_event_mapping(
     if unknown.height:
         raise ValueError(f"Zero Balance Code chưa có mapping:\n{unknown}")
 
+    # Lấy đầy đủ các bản ghi thiếu/sai ngày để audit.
     missing_dates = (
         monthly.filter(
             pl.col("_code").is_not_null()
             & pl.col("_effective_date").is_null()
         )
-        .select("loan_id", "_code", "zero_balance_effective_date")
-        .limit(5)
+        .select(
+            "loan_id",
+            "reporting_period_num",
+            "_code",
+            "zero_balance_effective_date",
+        )
         .collect()
     )
+
     if missing_dates.height:
-        raise ValueError(
-            "Có mã kết thúc nhưng thiếu/sai ngày hiệu lực. "
-            "Cần kiểm tra trước khi gán event:\n"
-            f"{missing_dates}"
+        if not exclude_missing_effective_date:
+            raise ValueError(
+                "Có mã kết thúc nhưng thiếu/sai ngày hiệu lực:\n"
+                f"{missing_dates.head(5)}"
+            )
+
+        # Loại toàn bộ lịch sử của khoản bị lỗi khỏi mẫu event.
+        # Không chỉ bỏ dòng lỗi rồi gán khoản đó thành right-censor.
+        excluded_ids = missing_dates.select("loan_id").unique()
+
+        print(
+            f"Tách {excluded_ids.height:,} khoản thiếu/sai "
+            "ngày hiệu lực khỏi mẫu; cần kiểm tra riêng.",
+            flush=True,
+        )
+
+        monthly = monthly.join(
+            excluded_ids.lazy(),
+            on="loan_id",
+            how="anti",
         )
 
     monthly = monthly.with_columns(
@@ -310,9 +333,53 @@ def build_event_mapping_year(
     orig = pl.scan_parquet(orig_path)
     perf = pl.scan_parquet(perf_path)
 
+    from src.config import PROJECT_ROOT
+
+    # Lưu các khoản bị tách trước khi xây dựng bảng event.
+    report_dir = PROJECT_ROOT / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    missing_date_audit = (
+        perf.filter(pl.col("reporting_period_num") <= 202603)
+        .with_columns(
+            pl.col("zero_balance_code")
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .alias("_code"),
+
+            pl.col("zero_balance_effective_date")
+            .cast(pl.String)
+            .str.strip_chars()
+            .replace("", None)
+            .str.strptime(pl.Date, "%Y%m", strict=False)
+            .alias("_effective_date"),
+        )
+        .filter(
+            pl.col("_code").is_not_null()
+            & pl.col("_effective_date").is_null()
+        )
+        .select(
+            "loan_id",
+            "reporting_period_num",
+            "zero_balance_code",
+            "zero_balance_effective_date",
+        )
+        .with_columns(
+            pl.lit("MISSING_OR_INVALID_EFFECTIVE_DATE")
+            .alias("exclusion_reason")
+        )
+        .collect()
+    )
+
+    missing_date_audit.write_csv(
+        report_dir / f"event_missing_date_{year}.csv"
+    )
+
     event_map = build_event_mapping(
         orig,
         perf,
+        exclude_missing_effective_date=True,
     )
 
     event_map.sink_parquet(
