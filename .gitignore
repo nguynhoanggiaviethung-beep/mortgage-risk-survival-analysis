@@ -74,6 +74,15 @@ data/_temp/*
 # Phase 1 deterministic Aalen-Johansen mock result
 !results/mock/aalen_johansen_results.parquet
 
+# Phase 2 deterministic DEFAULT Fine-Gray mock results
+!results/mock/fine_gray_default_results.parquet
+!results/mock/fine_gray_default_diagnostics.parquet
+
+# Phase 3 deterministic PD horizon and vintage analytical results
+!results/mock/overall_pd_horizons.parquet
+!results/mock/vintage_cif_results.parquet
+!results/mock/vintage_horizon_results.parquet
+
 
 # =========================================================
 # TEMP FILES

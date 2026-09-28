@@ -40,6 +40,9 @@ class TestResultManifest(unittest.TestCase):
                 "cause_specific_default": "cause_specific_default_v1",
                 "cause_specific_prepayment": "cause_specific_prepayment_v1",
                 "aalen_johansen": "aalen_johansen_v1",
+                "fine_gray_default": "fine_gray_default_v1",
+                "pd_horizons": "pd_horizons_v1",
+                "vintage_analysis": "vintage_analysis_v1",
             },
         )
         manifest = create_run_manifest(

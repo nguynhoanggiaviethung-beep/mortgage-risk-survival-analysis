@@ -45,6 +45,9 @@ MODEL_VERSION_REGISTRY: dict[str, str] = {
     "cause_specific_default": "cause_specific_default_v1",
     "cause_specific_prepayment": "cause_specific_prepayment_v1",
     "aalen_johansen": "aalen_johansen_v1",
+    "fine_gray_default": "fine_gray_default_v1",
+    "pd_horizons": "pd_horizons_v1",
+    "vintage_analysis": "vintage_analysis_v1",
 }
 
 _RUN_ID_PATTERN = re.compile(r"^\d{8}T\d{6}Z_[0-9a-f]{7,40}$")

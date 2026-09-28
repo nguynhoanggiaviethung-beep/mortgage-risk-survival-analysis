@@ -23,6 +23,11 @@ MOCK_ARTIFACTS = (
     ("cause_specific_prepayment_results", "results/mock/cause_specific_prepayment_results.parquet", "MODEL_RESULT", "cause_specific_prepayment"),
     ("cause_specific_prepayment_diagnostics", "results/mock/cause_specific_prepayment_diagnostics.parquet", "DIAGNOSTIC", "cause_specific_prepayment"),
     ("aalen_johansen_results", "results/mock/aalen_johansen_results.parquet", "MODEL_RESULT", "aalen_johansen"),
+    ("fine_gray_default_results", "results/mock/fine_gray_default_results.parquet", "MODEL_RESULT", "fine_gray_default"),
+    ("fine_gray_default_diagnostics", "results/mock/fine_gray_default_diagnostics.parquet", "DIAGNOSTIC", "fine_gray_default"),
+    ("overall_pd_horizons", "results/mock/overall_pd_horizons.parquet", "MODEL_RESULT", "pd_horizons"),
+    ("vintage_cif_results", "results/mock/vintage_cif_results.parquet", "MODEL_RESULT", "vintage_analysis"),
+    ("vintage_horizon_results", "results/mock/vintage_horizon_results.parquet", "MODEL_RESULT", "vintage_analysis"),
 )
 
 
