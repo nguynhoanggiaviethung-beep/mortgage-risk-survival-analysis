@@ -1,0 +1,522 @@
+{
+  "cohort_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "performance_cutoff": 202603,
+  "unit": "one row per loan",
+  "complete_case_variables": [
+    "fico",
+    "original_ltv",
+    "original_dti",
+    "original_interest_rate",
+    "original_loan_term"
+  ],
+  "sample_flow_by_year": [
+    {
+      "year": 2016,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 23
+        }
+      ],
+      "analysis_loans": 49977,
+      "complete_case_loans": 47450,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 34226
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 22
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1481
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 1033
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 13202
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
+          "len": 13
+        }
+      ]
+    },
+    {
+      "year": 2017,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 31
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 2
+        }
+      ],
+      "analysis_loans": 49967,
+      "complete_case_loans": 48153,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 11905
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 36214
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 750
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
+          "len": 7
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 34
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1057
+        }
+      ]
+    },
+    {
+      "year": 2018,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 48
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 1
+        }
+      ],
+      "analysis_loans": 49951,
+      "complete_case_loans": 49422,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 39487
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
+          "len": 3
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 21
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 9914
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 237
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 289
+        }
+      ]
+    },
+    {
+      "year": 2019,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 30
+        }
+      ],
+      "analysis_loans": 49970,
+      "complete_case_loans": 49921,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 35496
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 24
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 14407
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 18
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 25
+        }
+      ]
+    },
+    {
+      "year": 2020,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 18
+        }
+      ],
+      "analysis_loans": 49982,
+      "complete_case_loans": 49975,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 2
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 12
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 30612
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 19351
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 5
+        }
+      ]
+    },
+    {
+      "year": 2021,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 20
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 2
+        }
+      ],
+      "analysis_loans": 49978,
+      "complete_case_loans": 49963,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 6
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 40410
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 9547
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 14
+        }
+      ]
+    },
+    {
+      "year": 2022,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 53
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 5
+        }
+      ],
+      "analysis_loans": 49942,
+      "complete_case_loans": 49931,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 26
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 10
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 9580
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 40325
+        }
+      ]
+    },
+    {
+      "year": 2023,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 2
+        },
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 72
+        }
+      ],
+      "analysis_loans": 49926,
+      "complete_case_loans": 49906,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 37
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 36999
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 12870
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 5
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 15
+        }
+      ]
+    },
+    {
+      "year": 2024,
+      "origination_loans": 50000,
+      "without_usable_event_record": 0,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 3
+        },
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 81
+        }
+      ],
+      "analysis_loans": 49916,
+      "complete_case_loans": 49896,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 40844
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 17
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 9047
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 5
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 3
+        }
+      ]
+    },
+    {
+      "year": 2025,
+      "origination_loans": 50000,
+      "without_usable_event_record": 6,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 318
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 3
+        }
+      ],
+      "analysis_loans": 49673,
+      "complete_case_loans": 49654,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 2
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 46074
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 3580
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 17
+        }
+      ]
+    },
+    {
+      "year": 2026,
+      "origination_loans": 12500,
+      "without_usable_event_record": 5,
+      "time_exclusions": [
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 7372
+        }
+      ],
+      "analysis_loans": 5123,
+      "complete_case_loans": 5122,
+      "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 1
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 6
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 5116
+        }
+      ]
+    }
+  ],
+  "status": "PASS",
+  "analysis_validation": {
+    "rows": 504405,
+    "unique_loans": 504405,
+    "missing_id": 0,
+    "invalid_time": 0,
+    "outside_scope": 0,
+    "invalid_event": 0,
+    "complete_case": 499393,
+    "default": 204,
+    "prepayment": 212269,
+    "censor": 291932,
+    "status": "PASS"
+  },
+  "baseline_validation": {
+    "rows": 499393,
+    "unique_loans": 499393,
+    "missing_id": 0,
+    "invalid_time": 0,
+    "outside_scope": 0,
+    "invalid_event": 0,
+    "complete_case": 499393,
+    "default": 181,
+    "prepayment": 209404,
+    "censor": 289808,
+    "status": "PASS"
+  },
+  "excel_file": "E:\\Python\\mortgage-risk-survival-analysis\\data\\model\\baseline_complete_cases_2016_2026.xlsx"
+}
