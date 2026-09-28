@@ -42,6 +42,9 @@ MODEL_VERSION_REGISTRY: dict[str, str] = {
     "kaplan_meier": "km_v1",
     "cox_ph": "cox_ph_v1",
     "time_varying_cox": "tv_cox_v1",
+    "cause_specific_default": "cause_specific_default_v1",
+    "cause_specific_prepayment": "cause_specific_prepayment_v1",
+    "aalen_johansen": "aalen_johansen_v1",
 }
 
 _RUN_ID_PATTERN = re.compile(r"^\d{8}T\d{6}Z_[0-9a-f]{7,40}$")

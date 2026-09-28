@@ -21,14 +21,15 @@ from os import PathLike
 from pathlib import Path
 import os
 import shutil
-import subprocess
-import tempfile
+from subprocess import CompletedProcess
 from typing import TypeAlias
 
 import numpy as np
 import polars as pl
 
 from src.data.model_dataset import CORE_COLUMNS
+from src.r_runtime import child_environment as _child_environment
+from src.r_runtime import run_rscript_process
 from src.survival.cox_model import CoxFitResult, validate_cox_input
 
 
@@ -225,43 +226,12 @@ def resolve_rscript_path() -> Path:
     return path.resolve()
 
 
-def _child_environment() -> dict[str, str]:
-    environment = os.environ.copy()
-    for name in ("LANG", "LC_ALL", "LC_CTYPE"):
-        environment.pop(name, None)
-    return environment
-
-
 def _run_rscript(
     rscript: Path,
     expression: str,
     standard_input: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    # Windows Rscript 4.6.1 is unstable with literal newlines in a subprocess
-    # ``-e`` argument. Use a transient script outside the project and always
-    # remove it; the Cox-ready data still travels only through stdin.
-    script_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".R",
-            encoding="utf-8",
-            newline="\n",
-            delete=False,
-        ) as script:
-            script.write(expression)
-            script_path = Path(script.name)
-        process = subprocess.run(
-            [str(rscript), "--vanilla", str(script_path)],
-            input=standard_input if standard_input is not None else "",
-            text=True,
-            capture_output=True,
-            env=_child_environment(),
-            check=False,
-        )
-    finally:
-        if script_path is not None:
-            script_path.unlink(missing_ok=True)
+) -> CompletedProcess[str]:
+    process = run_rscript_process(rscript, expression, standard_input)
     if process.returncode != 0:
         detail = process.stderr.strip() or process.stdout.strip()
         raise PHConfigurationError(

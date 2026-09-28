@@ -18,6 +18,11 @@ MOCK_ARTIFACTS = (
     ("ph_global_diagnostics", "results/mock/ph_global_diagnostics.csv", "DIAGNOSTIC", "cox_ph"),
     ("time_varying_cox_results", "results/mock/time_varying_cox_results.parquet", "MODEL_RESULT", "time_varying_cox"),
     ("time_varying_cox_diagnostics", "results/mock/time_varying_cox_diagnostics.parquet", "DIAGNOSTIC", "time_varying_cox"),
+    ("cause_specific_default_results", "results/mock/cause_specific_default_results.parquet", "MODEL_RESULT", "cause_specific_default"),
+    ("cause_specific_default_diagnostics", "results/mock/cause_specific_default_diagnostics.parquet", "DIAGNOSTIC", "cause_specific_default"),
+    ("cause_specific_prepayment_results", "results/mock/cause_specific_prepayment_results.parquet", "MODEL_RESULT", "cause_specific_prepayment"),
+    ("cause_specific_prepayment_diagnostics", "results/mock/cause_specific_prepayment_diagnostics.parquet", "DIAGNOSTIC", "cause_specific_prepayment"),
+    ("aalen_johansen_results", "results/mock/aalen_johansen_results.parquet", "MODEL_RESULT", "aalen_johansen"),
 )
 
 
