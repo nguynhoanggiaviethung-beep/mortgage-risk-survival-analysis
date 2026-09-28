@@ -1,0 +1,12 @@
+year,zip_ok,schema_ok,orig_processed_rows,orig_clean_rows,perf_processed_rows,perf_clean_rows,orig_row_match,perf_row_match,orig_duplicate_loan_ids,perf_duplicate_loan_month,perf_ids_not_in_orig,orig_ids_without_perf,invalid_reporting_period,reporting_after_cutoff,reporting_order_violations,loans_with_reporting_gaps,total_missing_reporting_months,invalid_first_payment_date,invalid_maturity_date,maturity_before_first_payment,negative_loan_age,cleaning_violations,status,zip_message,orig_schema_missing,perf_schema_missing,orig_clean_schema_missing,perf_clean_schema_missing
+2016,true,true,50000,50000,3379650,3379650,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2017,true,true,50000,50000,2800219,2800219,true,true,0,0,0,0,0,0,0,1,2,0,0,0,0,0,PASS_WITH_WARNING,OK,"","","",""
+2018,true,true,50000,50000,2059564,2059564,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2019,true,true,50000,50000,1934614,1934614,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2020,true,true,50000,50000,2517857,2517857,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2021,true,true,50000,50000,2537054,2537054,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2022,true,true,50000,50000,2034798,2034798,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2023,true,true,50000,50000,1458169,1458169,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2024,true,true,50000,50000,952865,952865,true,true,0,0,0,0,0,0,0,0,0,0,0,0,0,0,PASS,OK,"","","",""
+2025,true,true,50000,50000,404946,404946,true,true,0,0,0,5,0,0,0,0,0,0,0,0,0,0,PASS_WITH_WARNING,OK,"","","",""
+2026,true,true,12500,12500,17648,17648,true,true,0,0,0,5,0,0,0,0,0,0,0,0,0,0,PASS_WITH_WARNING,OK,"","","",""

@@ -1,0 +1,27 @@
+{
+  "years": [
+    2016
+  ],
+  "cutoff": 202603,
+  "time_origin": "first_payment_month minus 1 calendar month",
+  "unit": "calendar months",
+  "checks": {
+    "rows": 3379650,
+    "loans": 50000,
+    "missing_loan_id": 0,
+    "negative_age_rows": 0,
+    "reporting_gap_rows": 0,
+    "order_error_rows": 0,
+    "after_exit_rows": 1,
+    "missing_time_rows": 0,
+    "eligible_negative_age_rows": 0
+  },
+  "duplicate_loan_month_keys": 0,
+  "excluded_loans_by_reason": [
+    {
+      "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+      "len": 23
+    }
+  ],
+  "status": "PASS_WITH_WARNING"
+}
