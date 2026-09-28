@@ -1,4 +1,0 @@
-model_name,concordance_index,brier_score,log_likelihood,aic
-Kaplan-Meier,0.5,0.082,-1250.4,2502.8
-Cox PH,0.72,0.054,-980.1,1972.2
-Fine-Gray (Competing Risk),0.78,0.041,-890.5,1795.0
