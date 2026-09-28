@@ -61,6 +61,10 @@ data/_temp/*
 !results/mock/ph_diagnostics.csv
 !results/mock/ph_global_diagnostics.csv
 
+# Step 5A deterministic time-varying Cox mock results
+!results/mock/time_varying_cox_results.parquet
+!results/mock/time_varying_cox_diagnostics.parquet
+
 
 # =========================================================
 # TEMP FILES

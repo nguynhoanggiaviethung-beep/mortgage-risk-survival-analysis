@@ -35,6 +35,18 @@ from src.survival.ph_test import (
     validate_ph_test_input,
     write_ph_diagnostics,
 )
+from src.survival.time_varying_cox_model import (
+    TimeVaryingCoxFitResult,
+    fit_time_varying_cox_model,
+    validate_time_varying_cox_diagnostics,
+    validate_time_varying_cox_results,
+    write_time_varying_cox_artifacts,
+)
+from src.survival.time_varying_input import (
+    build_time_varying_cox_input,
+    validate_time_varying_cox_input,
+    validate_time_varying_performance_source,
+)
 
 __all__ = [
     "build_loan_level_input",
@@ -64,4 +76,12 @@ __all__ = [
     "write_cox_artifacts",
     "write_km_results",
     "write_ph_diagnostics",
+    "build_time_varying_cox_input",
+    "fit_time_varying_cox_model",
+    "TimeVaryingCoxFitResult",
+    "validate_time_varying_cox_diagnostics",
+    "validate_time_varying_cox_input",
+    "validate_time_varying_cox_results",
+    "validate_time_varying_performance_source",
+    "write_time_varying_cox_artifacts",
 ]
