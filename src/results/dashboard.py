@@ -246,6 +246,8 @@ def risk_driver_results(release: DashboardRelease) -> pl.DataFrame:
         ("cox_results", "BASELINE_COX", "cox_ph"),
         ("time_varying_cox_results", "TV_COX", "time_varying_cox"),
         ("fine_gray_default_results", "FINE_GRAY_DEFAULT", "fine_gray_default"),
+        ("cause_specific_default_results", "CAUSE_SPECIFIC_DEFAULT", "cause_specific_default"),
+        ("cause_specific_prepayment_results", "CAUSE_SPECIFIC_PREPAYMENT", "cause_specific_prepayment"),
     )
     frames = []
     for artifact, model, version_key in sources:
@@ -297,6 +299,8 @@ def model_diagnostics(release: DashboardRelease) -> pl.DataFrame:
         ("ph_global_diagnostics", "BASELINE_COX", "cox_ph"),
         ("time_varying_cox_diagnostics", "TV_COX", "time_varying_cox"),
         ("fine_gray_default_diagnostics", "FINE_GRAY_DEFAULT", "fine_gray_default"),
+        ("cause_specific_default_diagnostics", "CAUSE_SPECIFIC_DEFAULT", "cause_specific_default"),
+        ("cause_specific_prepayment_diagnostics", "CAUSE_SPECIFIC_PREPAYMENT", "cause_specific_prepayment"),
     ):
         source = _read(release, artifact)
         diagnostic_type = artifact.removesuffix("_diagnostics")

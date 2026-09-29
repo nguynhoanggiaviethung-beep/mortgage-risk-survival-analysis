@@ -110,9 +110,8 @@ def _render_intro() -> None:
             <b>Default CIF</b> (Cumulative Incidence of Default) là xác suất một khoản vay
             <b>đã vỡ nợ</b> trong vòng <i>t</i> tháng kể từ origination, có tính đến việc khoản vay
             cũng có thể bị <b>tất toán sớm (Voluntary Prepayment)</b> trước khi vỡ nợ.
-            Đây chính là <b>PD(t)</b> của dự án.<br>
-            Chọn một <b>đặc điểm khoản vay</b> (Credit Score, LTV, DTI…) và một <b>horizon</b>
-            để so sánh: nhóm nào có cột cao hơn đường baseline danh mục là nhóm rủi ro cao hơn mức trung bình.
+            Đây chính là <b>PD(t)</b> của dự án. Trang hiển thị PD theo vintage và các mốc theo dõi
+            có đủ dữ liệu; kết quả nhóm FICO/LTV/DTI sẽ chỉ xuất hiện khi backend có bảng ước lượng riêng.
           </div>
         </div>
         """,
@@ -145,7 +144,19 @@ def render() -> None:
         data = data[data["vintage"].astype(str) == "All"]
 
     if data.empty:
-        st.info("pd_results chưa có dữ liệu theo nhóm (ngoài dòng 'portfolio').")
+        st.info(
+            "Run backend hiện tại đã có PD toàn danh mục và theo năm vintage. "
+            "Chưa có bảng CIF ước lượng riêng theo nhóm FICO/LTV/DTI, nên trang không tạo các nhóm thay thế."
+        )
+        if not baseline_df.empty:
+            baseline_df = baseline_df.sort_values("horizon")
+            eligible = baseline_df[baseline_df.get("follow_up_flag", True).astype(bool)] if "follow_up_flag" in baseline_df else baseline_df
+            if not eligible.empty:
+                section_title("Default CIF toàn danh mục")
+                cols = st.columns(len(eligible))
+                for col, (_, row) in zip(cols, eligible.iterrows()):
+                    with col:
+                        st.metric(f"{int(row['horizon'])} tháng", _pct(row["cif_default"]))
         _render_vintage_section(None)
         return
 
@@ -333,7 +344,7 @@ def render() -> None:
 - **Default CIF = PD(t)** của dự án; ước lượng theo khung competing risk, coi *Voluntary Prepayment* là competing event.
 - **Không dùng 1 − Kaplan–Meier** làm xác suất vỡ nợ khi có competing event (LOCKED RULE trong specification).
 - Default gồm ZBC 03 và 09; ZBC 01 là Voluntary Prepayment; ZBC 02, 15, 16, 96 được xử lý là censored.
-- Phạm vi: khoản vay origination 2016–2022, performance đến 31/03/2026; horizon 60M chỉ hiển thị khi đủ follow-up.
+- Phạm vi: khoản vay origination 2016–2026, performance đến 31/03/2026; vintage 2026 là một phần kỳ và horizon 60M chỉ hiển thị khi đủ follow-up.
 - Đây là **so sánh mô tả** giữa các nhóm, chưa phải hiệu ứng nhân quả riêng của từng đặc điểm — xem trang *Yếu tố rủi ro* (Cox / Fine–Gray) để có hệ số đã kiểm soát các biến khác.
 - PD(t) là đầu vào phân tích tín dụng, không đủ để tuyên bố đã tính ECL/IFRS 9.
             """
@@ -348,10 +359,16 @@ def _render_vintage_section(selected_horizon) -> None:
                   "Default CIF của từng năm origination tại các horizon — so sánh các thế hệ khoản vay.")
     v = v.copy()
     v["horizon"] = v["horizon"].astype(int)
+    chart_data = v
+    if "follow_up_eligible" in chart_data.columns:
+        chart_data = chart_data[chart_data["follow_up_eligible"].fillna(False).astype(bool)]
+    if chart_data.empty:
+        st.info("Chưa có vintage nào đủ follow-up tại các horizon được báo cáo.")
+        return
     fig = go.Figure()
     palette = [PRIMARY_DARK, PRIMARY, "#4C86B5", NEAR_COLOR]
-    for i, h in enumerate(sorted(v["horizon"].unique())):
-        d = v[v["horizon"] == h].sort_values("vintage")
+    for i, h in enumerate(sorted(chart_data["horizon"].unique())):
+        d = chart_data[chart_data["horizon"] == h].sort_values("vintage")
         fig.add_trace(go.Scatter(
             x=d["vintage"].astype(str), y=d["default_cif"], mode="lines+markers", name=f"{h}M",
             line=dict(color=palette[i % len(palette)], width=3 if h == selected_horizon else 1.8),
@@ -362,6 +379,6 @@ def _render_vintage_section(selected_horizon) -> None:
     _chart_card_open()
     st.plotly_chart(_layout(fig), width="stretch")
     _chart_card_close()
-    with st.expander("Bảng vintage_results"):
+    with st.expander("Bảng vintage results (bao gồm trạng thái follow-up)"):
         st.dataframe(v.sort_values(["vintage", "horizon"]).reset_index(drop=True),
                      hide_index=True, width="stretch")

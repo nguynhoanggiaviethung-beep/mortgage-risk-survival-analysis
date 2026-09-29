@@ -1,0 +1,131 @@
+{
+  "actual_loans": 25000,
+  "benchmark_kind": "TV_COX_RESOURCE",
+  "censor_count": 5149,
+  "constructed_interval_rows": 783737,
+  "convergence_status": "FAILED",
+  "convergence_warning": null,
+  "created_at_utc": "2026-09-29T17:18:53Z",
+  "default_count": 16107,
+  "delayed_entry_count": 1926,
+  "exception_message": "Time-varying Cox fit failed to converge: hessian or gradient contains nan or inf value(s). Convergence halted. Please see the following tips in the lifelines documentation:\nhttps://lifelines.readthedocs.io/en/latest/Examples.html#problems-with-convergence-in-the-cox-proportional-hazard-model\narray must not contain infs or NaNs",
+  "exception_type": "TimeVaryingCoxModelError",
+  "failure_stage": "MODEL_FIT",
+  "fit_runtime_seconds": 2.9564457999995284,
+  "identifiability_preflight": {
+    "binary_delinquency_support": {
+      "lag_dq_3plus": {
+        "positive_count_default_terminal_intervals": 0,
+        "positive_count_overall": 0
+      }
+    },
+    "initial_gradient_all_finite": false,
+    "initial_information_matrix_all_finite": false,
+    "initial_information_matrix_dimension": 8,
+    "initial_information_matrix_rank": null,
+    "interval_integrity": {
+      "duplicate_interval_key_count": 0,
+      "negative_start_count": 0,
+      "negative_width_count": 0,
+      "row_count": 783737,
+      "status": "PASS",
+      "terminal_default_event_count": 16107,
+      "unique_interval_key_count": 783737,
+      "zero_width_count": 0
+    },
+    "predictor_finite_support": {
+      "fico": {
+        "all_finite": true,
+        "maximum": 830.0,
+        "minimum": 583.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 49.001077371627424,
+        "unique_value_count": 226
+      },
+      "lag_current_actual_upb": {
+        "all_finite": true,
+        "maximum": 1500000.0,
+        "minimum": 0.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 141210.93275475886,
+        "unique_value_count": 536115
+      },
+      "lag_current_interest_rate": {
+        "all_finite": true,
+        "maximum": 8.99,
+        "minimum": 1.75,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 1.1599314112214651,
+        "unique_value_count": 543
+      },
+      "lag_dq_3plus": {
+        "all_finite": true,
+        "maximum": 0.0,
+        "minimum": 0.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 0.0,
+        "unique_value_count": 1
+      },
+      "original_dti": {
+        "all_finite": true,
+        "maximum": 61.0,
+        "minimum": 1.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 8.896232366892809,
+        "unique_value_count": 53
+      },
+      "original_interest_rate": {
+        "all_finite": true,
+        "maximum": 8.99,
+        "minimum": 1.75,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 1.1599230294647531,
+        "unique_value_count": 543
+      },
+      "original_loan_term": {
+        "all_finite": true,
+        "maximum": 360.0,
+        "minimum": 96.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 61.30294936064473,
+        "unique_value_count": 32
+      },
+      "original_ltv": {
+        "all_finite": true,
+        "maximum": 103.0,
+        "minimum": 6.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 16.95946444961309,
+        "unique_value_count": 93
+      }
+    },
+    "rank_computation": "LIFELINES_INITIAL_NEWTON_RAPHSON_GRADIENT",
+    "status": "COMPLETED",
+    "terminal_default_event_count": 16107
+  },
+  "identifiability_preflight_runtime_seconds": 1.7674152999998114,
+  "input_build_runtime_seconds": 4.220618100000138,
+  "input_validation_status": "PASS",
+  "interval_expansion_ratio": 31.34948,
+  "is_production_result": false,
+  "output_validation_status": null,
+  "pandas_conversion_memory_bytes": null,
+  "pandas_conversion_memory_status": "NOT_EXPOSED_BY_CURRENT_ESTIMATOR_API",
+  "peak_rss_bytes": null,
+  "peak_rss_status": "UNAVAILABLE_WITH_INSTALLED_TOOLING",
+  "prepayment_count": 3744,
+  "requested_loans": 25000,
+  "selected_histories_complete": true,
+  "source_monthly_rows": 1326136,
+  "status": "FAILED",
+  "total_runtime_seconds": 12.827048600000126,
+  "validation_runtime_seconds": 0.377252999999655
+}

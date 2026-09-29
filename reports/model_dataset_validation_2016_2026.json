@@ -36,34 +36,34 @@
       "complete_case_loans": 47450,
       "event_counts_by_completeness": [
         {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 34226
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "DEFAULT",
-          "len": 22
-        },
-        {
-          "core_covariates_complete_flag": false,
-          "event_type": "PREPAYMENT",
-          "len": 1481
-        },
-        {
           "core_covariates_complete_flag": false,
           "event_type": "CENSOR",
-          "len": 1033
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 13202
+          "len": 898
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "DEFAULT",
-          "len": 13
+          "len": 220
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 2147
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1409
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 12105
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 33198
         }
       ]
     },
@@ -86,33 +86,33 @@
       "event_counts_by_completeness": [
         {
           "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 11905
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 36214
-        },
-        {
-          "core_covariates_complete_flag": false,
-          "event_type": "CENSOR",
-          "len": 750
-        },
-        {
-          "core_covariates_complete_flag": false,
           "event_type": "DEFAULT",
-          "len": 7
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "DEFAULT",
-          "len": 34
+          "len": 2754
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
-          "len": 1057
+          "len": 1000
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 652
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 34878
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
+          "len": 162
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 10521
         }
       ]
     },
@@ -136,32 +136,32 @@
         {
           "core_covariates_complete_flag": true,
           "event_type": "PREPAYMENT",
-          "len": 39487
+          "len": 38184
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "DEFAULT",
-          "len": 3
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "DEFAULT",
-          "len": 21
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 9914
+          "len": 60
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "CENSOR",
-          "len": 237
+          "len": 207
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
-          "len": 289
+          "len": 262
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 8590
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 2648
         }
       ]
     },
@@ -179,29 +179,34 @@
       "complete_case_loans": 49921,
       "event_counts_by_completeness": [
         {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 35496
-        },
-        {
           "core_covariates_complete_flag": false,
-          "event_type": "PREPAYMENT",
-          "len": 24
-        },
-        {
-          "core_covariates_complete_flag": true,
           "event_type": "CENSOR",
-          "len": 14407
+          "len": 22
         },
         {
           "core_covariates_complete_flag": true,
           "event_type": "DEFAULT",
-          "len": 18
+          "len": 2780
         },
         {
           "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 21
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 34163
+        },
+        {
+          "core_covariates_complete_flag": true,
           "event_type": "CENSOR",
-          "len": 25
+          "len": 12978
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
+          "len": 6
         }
       ]
     },
@@ -220,28 +225,28 @@
       "event_counts_by_completeness": [
         {
           "core_covariates_complete_flag": false,
+          "event_type": "CENSOR",
+          "len": 5
+        },
+        {
+          "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
           "len": 2
         },
         {
           "core_covariates_complete_flag": true,
           "event_type": "DEFAULT",
-          "len": 12
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 30612
+          "len": 1128
         },
         {
           "core_covariates_complete_flag": true,
           "event_type": "PREPAYMENT",
-          "len": 19351
+          "len": 18966
         },
         {
-          "core_covariates_complete_flag": false,
+          "core_covariates_complete_flag": true,
           "event_type": "CENSOR",
-          "len": 5
+          "len": 29881
         }
       ]
     },
@@ -263,29 +268,34 @@
       "complete_case_loans": 49963,
       "event_counts_by_completeness": [
         {
-          "core_covariates_complete_flag": false,
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 39564
+        },
+        {
+          "core_covariates_complete_flag": true,
           "event_type": "PREPAYMENT",
+          "len": 9396
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "DEFAULT",
           "len": 1
         },
         {
           "core_covariates_complete_flag": true,
           "event_type": "DEFAULT",
-          "len": 6
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 40410
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 9547
+          "len": 1003
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "CENSOR",
-          "len": 14
+          "len": 13
+        },
+        {
+          "core_covariates_complete_flag": false,
+          "event_type": "PREPAYMENT",
+          "len": 1
         }
       ]
     },
@@ -295,17 +305,22 @@
       "without_usable_event_record": 0,
       "time_exclusions": [
         {
-          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
-          "len": 53
-        },
-        {
           "survival_exclusion_reason": "NEGATIVE_AGE",
           "len": 5
+        },
+        {
+          "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
+          "len": 53
         }
       ],
       "analysis_loans": 49942,
       "complete_case_loans": 49931,
       "event_counts_by_completeness": [
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 38829
+        },
         {
           "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
@@ -313,23 +328,18 @@
         },
         {
           "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 9355
+        },
+        {
+          "core_covariates_complete_flag": true,
           "event_type": "DEFAULT",
-          "len": 26
+          "len": 1747
         },
         {
           "core_covariates_complete_flag": false,
           "event_type": "CENSOR",
           "len": 10
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 9580
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 40325
         }
       ]
     },
@@ -339,31 +349,21 @@
       "without_usable_event_record": 0,
       "time_exclusions": [
         {
-          "survival_exclusion_reason": "NEGATIVE_AGE",
-          "len": 2
-        },
-        {
           "survival_exclusion_reason": "ZERO_OBSERVED_INTERVAL",
           "len": 72
+        },
+        {
+          "survival_exclusion_reason": "NEGATIVE_AGE",
+          "len": 2
         }
       ],
       "analysis_loans": 49926,
       "complete_case_loans": 49906,
       "event_counts_by_completeness": [
         {
-          "core_covariates_complete_flag": true,
-          "event_type": "DEFAULT",
-          "len": 37
-        },
-        {
-          "core_covariates_complete_flag": true,
+          "core_covariates_complete_flag": false,
           "event_type": "CENSOR",
-          "len": 36999
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 12870
+          "len": 15
         },
         {
           "core_covariates_complete_flag": false,
@@ -371,9 +371,19 @@
           "len": 5
         },
         {
-          "core_covariates_complete_flag": false,
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 12745
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 1214
+        },
+        {
+          "core_covariates_complete_flag": true,
           "event_type": "CENSOR",
-          "len": 15
+          "len": 35947
         }
       ]
     },
@@ -396,8 +406,8 @@
       "event_counts_by_completeness": [
         {
           "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 40844
+          "event_type": "PREPAYMENT",
+          "len": 8999
         },
         {
           "core_covariates_complete_flag": false,
@@ -405,19 +415,19 @@
           "len": 17
         },
         {
-          "core_covariates_complete_flag": true,
+          "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
-          "len": 9047
+          "len": 3
         },
         {
           "core_covariates_complete_flag": true,
           "event_type": "DEFAULT",
-          "len": 5
+          "len": 615
         },
         {
-          "core_covariates_complete_flag": false,
-          "event_type": "PREPAYMENT",
-          "len": 3
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 40282
         }
       ]
     },
@@ -439,19 +449,24 @@
       "complete_case_loans": 49654,
       "event_counts_by_completeness": [
         {
+          "core_covariates_complete_flag": true,
+          "event_type": "CENSOR",
+          "len": 46004
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "PREPAYMENT",
+          "len": 3579
+        },
+        {
+          "core_covariates_complete_flag": true,
+          "event_type": "DEFAULT",
+          "len": 71
+        },
+        {
           "core_covariates_complete_flag": false,
           "event_type": "PREPAYMENT",
           "len": 2
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 46074
-        },
-        {
-          "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 3580
         },
         {
           "core_covariates_complete_flag": false,
@@ -480,13 +495,13 @@
         },
         {
           "core_covariates_complete_flag": true,
-          "event_type": "PREPAYMENT",
-          "len": 6
+          "event_type": "CENSOR",
+          "len": 5116
         },
         {
           "core_covariates_complete_flag": true,
-          "event_type": "CENSOR",
-          "len": 5116
+          "event_type": "PREPAYMENT",
+          "len": 6
         }
       ]
     }
@@ -500,9 +515,9 @@
     "outside_scope": 0,
     "invalid_event": 0,
     "complete_case": 499393,
-    "default": 204,
-    "prepayment": 212269,
-    "censor": 291932,
+    "default": 16556,
+    "prepayment": 206175,
+    "censor": 281674,
     "status": "PASS"
   },
   "baseline_validation": {
@@ -513,10 +528,10 @@
     "outside_scope": 0,
     "invalid_event": 0,
     "complete_case": 499393,
-    "default": 181,
-    "prepayment": 209404,
-    "censor": 289808,
+    "default": 16107,
+    "prepayment": 203469,
+    "censor": 279817,
     "status": "PASS"
   },
-  "excel_file": "E:\\Python\\mortgage-risk-survival-analysis\\data\\model\\baseline_complete_cases_2016_2026.xlsx"
+  "excel_file": "D:\\Gói 1\\mortgage-risk-survival-analysis\\data\\model\\baseline_complete_cases_2016_2026.xlsx"
 }

@@ -22,7 +22,7 @@ def render_filter_bar():
     ltv_band = st.sidebar.selectbox("LTV Band", ["All", "<70%", "70%-80%", ">80%"])
     dti_band = st.sidebar.selectbox("DTI Band", ["All", "<36%", "36%-45%", ">45%"])
     
-    if st.sidebar.button("🔄 Reset Bộ Lọc", use_container_width=True):
+    if st.sidebar.button("🔄 Reset Bộ Lọc", width="stretch"):
         st.session_state.global_filters = {
             "vintages": ["All"], "terms": ["All"],
             "credit_score_band": "All", "ltv_band": "All",

@@ -62,7 +62,7 @@ def render() -> None:
         st.info("Không có hệ số nào khớp với lựa chọn hiện tại.")
         return
 
-    metric_label = "HR" if "cox" in model_type.lower() else "SHR"
+    metric_label = "SHR" if "fine-gray" in model_type.lower() else "HR"
 
     section_title(f"Forest plot — {model_type} ({endpoint})",
                   f"{metric_label} với 95% Confidence Interval. Đường đứt nét = {metric_label} = 1.")

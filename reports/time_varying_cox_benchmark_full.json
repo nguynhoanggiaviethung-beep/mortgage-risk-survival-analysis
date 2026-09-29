@@ -1,0 +1,144 @@
+{
+  "actual_loans": 499393,
+  "benchmark_kind": "TV_COX_RESOURCE",
+  "censor_count": 279817,
+  "constructed_interval_rows": 18706061,
+  "convergence_status": "PASS",
+  "convergence_warning": "",
+  "created_at_utc": "2026-09-29T17:34:15Z",
+  "default_count": 16107,
+  "delayed_entry_count": 33757,
+  "exception_message": null,
+  "exception_type": null,
+  "failure_stage": null,
+  "fit_runtime_seconds": 636.3459124999999,
+  "identifiability_preflight": {
+    "binary_delinquency_support": {
+      "lag_dq_1m": {
+        "positive_count_default_terminal_intervals": 131,
+        "positive_count_overall": 129376
+      },
+      "lag_dq_2m": {
+        "positive_count_default_terminal_intervals": 15870,
+        "positive_count_overall": 32334
+      }
+    },
+    "initial_gradient_all_finite": true,
+    "initial_information_matrix_all_finite": true,
+    "initial_information_matrix_dimension": 9,
+    "initial_information_matrix_rank": 9,
+    "interval_integrity": {
+      "duplicate_interval_key_count": 0,
+      "negative_start_count": 0,
+      "negative_width_count": 0,
+      "row_count": 18706061,
+      "status": "PASS",
+      "terminal_default_event_count": 16107,
+      "unique_interval_key_count": 18706061,
+      "zero_width_count": 0
+    },
+    "predictor_finite_support": {
+      "fico": {
+        "all_finite": true,
+        "maximum": 848.0,
+        "minimum": 300.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 44.79988203711989,
+        "unique_value_count": 276
+      },
+      "lag_current_actual_upb": {
+        "all_finite": true,
+        "maximum": 2298000.0,
+        "minimum": 0.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 142289.86917760083,
+        "unique_value_count": 10861847
+      },
+      "lag_current_interest_rate": {
+        "all_finite": true,
+        "maximum": 9.18,
+        "minimum": 1.625,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 1.310843829976583,
+        "unique_value_count": 3819
+      },
+      "lag_dq_1m": {
+        "all_finite": true,
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 0.08287597174471562,
+        "unique_value_count": 2
+      },
+      "lag_dq_2m": {
+        "all_finite": true,
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 0.041539654979263874,
+        "unique_value_count": 2
+      },
+      "original_dti": {
+        "all_finite": true,
+        "maximum": 65.0,
+        "minimum": 1.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 9.62546295915012,
+        "unique_value_count": 64
+      },
+      "original_interest_rate": {
+        "all_finite": true,
+        "maximum": 9.18,
+        "minimum": 1.625,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 1.3108439521470654,
+        "unique_value_count": 3819
+      },
+      "original_loan_term": {
+        "all_finite": true,
+        "maximum": 360.0,
+        "minimum": 85.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 68.4537357935571,
+        "unique_value_count": 184
+      },
+      "original_ltv": {
+        "all_finite": true,
+        "maximum": 365.0,
+        "minimum": 3.0,
+        "nonfinite_count": 0,
+        "null_count": 0,
+        "sample_standard_deviation": 17.957641049786552,
+        "unique_value_count": 103
+      }
+    },
+    "rank_computation": "LIFELINES_INITIAL_NEWTON_RAPHSON_GRADIENT",
+    "status": "COMPLETED",
+    "terminal_default_event_count": 16107
+  },
+  "identifiability_preflight_runtime_seconds": 46.043519599999854,
+  "input_build_runtime_seconds": 40.69872940000005,
+  "input_validation_status": "PASS",
+  "interval_expansion_ratio": 37.45759552096245,
+  "is_production_result": false,
+  "output_validation_status": "PASS",
+  "pandas_conversion_memory_bytes": null,
+  "pandas_conversion_memory_status": "NOT_EXPOSED_BY_CURRENT_ESTIMATOR_API",
+  "peak_rss_bytes": null,
+  "peak_rss_status": "UNAVAILABLE_WITH_INSTALLED_TOOLING",
+  "prepayment_count": 203469,
+  "requested_loans": 499393,
+  "selected_histories_complete": true,
+  "source_monthly_rows": 19721945,
+  "status": "PASS",
+  "total_runtime_seconds": 740.3968777,
+  "validation_runtime_seconds": 12.857534499999929
+}

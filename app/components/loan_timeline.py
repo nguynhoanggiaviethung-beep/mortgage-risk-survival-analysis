@@ -33,16 +33,26 @@ def loan_timeline_chart(df_timeline: pd.DataFrame, loan_age: int = None) -> go.F
         showlegend=False
     ))
 
-    # 3. Marker Origination (Tháng 0)
+    # 3. Mark the origin proxy and first-payment month separately.
     fig.add_trace(go.Scatter(
         x=[0],
         y=[0],
         mode="markers+text",
-        marker=dict(size=14, color="#2563EB", symbol="circle"),
-        text=["Origination"],
+        marker=dict(size=14, color="#64748B", symbol="diamond"),
+        text=["Origination month (proxy)"],
         textposition="top center",
-        name="Origination",
-        hovertemplate="<b>Origination (T=0)</b><extra></extra>"
+        name="Origination month (proxy)",
+        hovertemplate="<b>Origination month proxy (month 0)</b><extra></extra>"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[1],
+        y=[0],
+        mode="markers+text",
+        marker=dict(size=12, color="#2563EB", symbol="circle"),
+        text=["First payment"],
+        textposition="bottom center",
+        name="First payment month",
+        hovertemplate="<b>First payment month (month 1)</b><extra></extra>"
     ))
 
     # 4. Markers cho các kỳ Active hàng tháng
@@ -81,9 +91,9 @@ def loan_timeline_chart(df_timeline: pd.DataFrame, loan_age: int = None) -> go.F
         height=200,
         margin=dict(l=30, r=30, t=30, b=30),
         xaxis=dict(
-            title="Loan Age (Tháng)",
+            title="Tháng từ origination proxy",
             dtick=1 if max_month <= 12 else (3 if max_month <= 36 else 6),
-            range=[-1, max_month + 2],
+            range=[-0.5, max_month + 2],
             showgrid=False
         ),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[-0.5, 0.5]),

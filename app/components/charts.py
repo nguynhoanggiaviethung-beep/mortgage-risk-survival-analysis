@@ -45,7 +45,7 @@ def survival_curve_chart(df: pd.DataFrame, group_col: str = "group_value") -> go
             line=dict(color=color, width=2, shape="hv"),
         ))
     fig.update_yaxes(title="Survival S(t)", range=[0, 1])
-    fig.update_xaxes(title="Analysis time (months since origination)")
+    fig.update_xaxes(title="Months since origination-month proxy (first payment = month 1)")
     return _apply_layout(fig)
 
 
@@ -133,9 +133,15 @@ def loan_timeline_chart(df: pd.DataFrame, loan_age: int | None = None) -> go.Fig
         line=dict(color=PRIMARY, width=3), showlegend=False, hoverinfo="skip",
     ))
     fig.add_trace(go.Scatter(
-        x=[d["analysis_time_month"].min()], y=[0], mode="markers+text",
-        marker=dict(size=12, color=PRIMARY), text=["Origination"], textposition="bottom center",
-        name="Origination",
+        x=[0], y=[0], mode="markers+text",
+        marker=dict(size=12, color=TEXT_MUTED, symbol="diamond"),
+        text=["Origination month (proxy)"], textposition="top center",
+        name="Origination month (proxy)",
+    ))
+    fig.add_trace(go.Scatter(
+        x=[1], y=[0], mode="markers+text",
+        marker=dict(size=10, color=PRIMARY), text=["First payment"],
+        textposition="bottom center", name="First payment month",
     ))
     if loan_age is not None:
         fig.add_trace(go.Scatter(
@@ -151,5 +157,5 @@ def loan_timeline_chart(df: pd.DataFrame, loan_age: int | None = None) -> go.Fig
             text=event_rows["event_type"], textposition="bottom center", name="Event",
         ))
     fig.update_yaxes(visible=False, range=[-1, 1])
-    fig.update_xaxes(title="Loan age (tháng kể từ origination)")
+    fig.update_xaxes(title="Months since origination-month proxy (first payment = month 1)")
     return _apply_layout(fig, height=220)

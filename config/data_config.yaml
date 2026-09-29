@@ -1,5 +1,5 @@
 # Đường dẫn dữ liệu trên máy bạn, không đưa dữ liệu lên GitHub.
-raw_dir: "E:/Python/data/raw"
+raw_dir: "src/data"
 report_dir: "reports"
 
 # Phạm vi nguồn tải về, chưa phải bộ lọc cohort phân tích.

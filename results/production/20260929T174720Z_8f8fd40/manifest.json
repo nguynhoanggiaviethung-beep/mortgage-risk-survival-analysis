@@ -1,0 +1,198 @@
+{
+  "artifacts": [
+    {
+      "artifact_type": "INPUT_PROVENANCE",
+      "logical_name": "input_provenance",
+      "producer": "production_preflight",
+      "relative_path": "provenance/input_provenance.json",
+      "row_count": null,
+      "sha256": "097c4460467ff75129fdc1dc34fb8c1bcc374a625ca9c52064c2419bc475cced",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "km_results",
+      "producer": "kaplan_meier",
+      "relative_path": "models/km_results.parquet",
+      "row_count": 123,
+      "sha256": "59600a50e59751365fabe3c6e1f3f96159301c731b52d51c3bde816f1c516e1a",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "cox_results",
+      "producer": "cox_ph",
+      "relative_path": "models/cox_results.parquet",
+      "row_count": 5,
+      "sha256": "a7c6bef502e234efcc1601d0233c88b9138e1b30515ab8101ec667090a0633da",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "cox_diagnostics",
+      "producer": "cox_ph",
+      "relative_path": "diagnostics/cox_diagnostics.parquet",
+      "row_count": 1,
+      "sha256": "030deea5ba1cd32018f27e889b36efa86e0d84ce32c8a829e130742944be7fd8",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "ph_diagnostics",
+      "producer": "cox_ph",
+      "relative_path": "diagnostics/ph_diagnostics.csv",
+      "row_count": 10,
+      "sha256": "a5eb068b33a183c9fed22fa51f440983b8bbb99a588489287bf8046e446a2b6b",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "ph_global_diagnostics",
+      "producer": "cox_ph",
+      "relative_path": "diagnostics/ph_global_diagnostics.csv",
+      "row_count": 2,
+      "sha256": "21a1996a5c12cea34711529637ea632d07dbef646eeaa4babd38eabe8f4636ec",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "cause_specific_default_results",
+      "producer": "cause_specific_default",
+      "relative_path": "models/cause_specific_default_results.parquet",
+      "row_count": 5,
+      "sha256": "db990c3427bfde470d8d4f1b3d1508fce9a1cd8213927ead8c403f551d37e033",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "cause_specific_default_diagnostics",
+      "producer": "cause_specific_default",
+      "relative_path": "diagnostics/cause_specific_default_diagnostics.parquet",
+      "row_count": 1,
+      "sha256": "ff51a6ecf18692937b973ac36962a344c65b5ee4637a0d214d3a54c0e51d89c6",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "cause_specific_prepayment_results",
+      "producer": "cause_specific_prepayment",
+      "relative_path": "models/cause_specific_prepayment_results.parquet",
+      "row_count": 5,
+      "sha256": "b2b46fd0f7d369fdc16642bdc151cf5f958fab32138797f3b13f1d5fe19346f9",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "cause_specific_prepayment_diagnostics",
+      "producer": "cause_specific_prepayment",
+      "relative_path": "diagnostics/cause_specific_prepayment_diagnostics.parquet",
+      "row_count": 1,
+      "sha256": "daac352c874806e8c118d7bf674dda3672d2100f93822756f79b4a24be177974",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "aalen_johansen_results",
+      "producer": "aalen_johansen",
+      "relative_path": "models/aalen_johansen_results.parquet",
+      "row_count": 244,
+      "sha256": "1268dd370b61d44162164ddf0732a0703e87e0f25baab5b04a084f644a546be2",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "ANALYTICAL_DERIVED_RESULT",
+      "logical_name": "overall_pd_horizons",
+      "producer": "pd_horizons",
+      "relative_path": "derived/overall_pd_horizons.parquet",
+      "row_count": 4,
+      "sha256": "81c865cff4ab027d483b391d1d11feb7d3a7e8fcc4cfe22b503ec6f8970f4035",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "vintage_cif_results",
+      "producer": "vintage_analysis",
+      "relative_path": "models/vintage_cif_results.parquet",
+      "row_count": 1364,
+      "sha256": "b1618220b7d8c3c9cfcd6a507b2bc2fd0cdb4faff05dd8236286eb0586a11ca2",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "ANALYTICAL_DERIVED_RESULT",
+      "logical_name": "vintage_horizon_results",
+      "producer": "vintage_analysis",
+      "relative_path": "derived/vintage_horizon_results.parquet",
+      "row_count": 44,
+      "sha256": "91cd891d4487b1f8cdeb07e596c7c5b64500c9b20f3ce312e0b9a36f04c86802",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "fine_gray_default_results",
+      "producer": "fine_gray_default",
+      "relative_path": "models/fine_gray_default_results.parquet",
+      "row_count": 5,
+      "sha256": "b2bc4482a4d4140df24675d10c8e521e0757a71d0630371adb1e1e5d0a87ea78",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "fine_gray_default_diagnostics",
+      "producer": "fine_gray_default",
+      "relative_path": "diagnostics/fine_gray_default_diagnostics.parquet",
+      "row_count": 1,
+      "sha256": "c4a3a60180999ae4bfa2898da2cb2c992ace2aea797ee62d56f05c85c5a9f396",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "MODEL_RESULT",
+      "logical_name": "time_varying_cox_results",
+      "producer": "time_varying_cox",
+      "relative_path": "models/time_varying_cox_results.parquet",
+      "row_count": 9,
+      "sha256": "d842536a4ab20785eb3c33a806e0435704cbad2814e596ba8bce4bc081d945ba",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_type": "DIAGNOSTIC_RESULT",
+      "logical_name": "time_varying_cox_diagnostics",
+      "producer": "time_varying_cox",
+      "relative_path": "diagnostics/time_varying_cox_diagnostics.parquet",
+      "row_count": 1,
+      "sha256": "13e0447f7a3159ecd61df57102aca6ef79faae1bc3b0731d6806c45cca10f615",
+      "status": "VERIFIED"
+    }
+  ],
+  "code_commit": "8f8fd402545fe75b4e2f5239b862509c61a5b733",
+  "cohort_end_year": 2026,
+  "cohort_start_year": 2016,
+  "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+  "environment": "PRODUCTION",
+  "model_versions": {
+    "aalen_johansen": "aalen_johansen_v1",
+    "cause_specific_default": "cause_specific_default_v1",
+    "cause_specific_prepayment": "cause_specific_prepayment_v1",
+    "cox_ph": "cox_ph_v1",
+    "fine_gray_default": "fine_gray_default_v1",
+    "kaplan_meier": "km_v1",
+    "pd_horizons": "pd_horizons_v1",
+    "time_varying_cox": "tv_cox_v4",
+    "vintage_analysis": "vintage_analysis_v1"
+  },
+  "performance_cutoff": "202603",
+  "run_date_utc": "2026-09-29T17:47:20Z",
+  "run_id": "20260929T174720Z_8f8fd40",
+  "run_status": "FAILED",
+  "runtime_versions": {
+    "lifelines": "0.30.3",
+    "numpy": "2.5.3",
+    "pandas": "2.3.3",
+    "polars": "1.44.2",
+    "pyarrow": "25.0.1",
+    "python": "3.14.7",
+    "r_version": "4.6.1",
+    "rscript_path": "C:\\Program Files\\R\\R-4.6.1\\bin\\Rscript.exe",
+    "survival_version": "3.8-6"
+  },
+  "specification_version": "1.1.0"
+}

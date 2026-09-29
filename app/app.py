@@ -20,7 +20,7 @@ from app.pages import loan_explorer, model_insights, overview, portfolio_risk, r
 from app.services import data_service as ds
 
 # Phạm vi dữ liệu đã khóa trong Project Specification (mục 1)
-COHORT_DEFAULT = "2016 – 2022"
+COHORT_DEFAULT = "2016 – 2026"
 PERFORMANCE_CUTOFF = "31/03/2026"
 
 st.set_page_config(
@@ -126,7 +126,7 @@ def _render_sidebar_dataset_card() -> None:
               Chưa đọc được số liệu theo năm — sẽ hiện khi có dữ liệu trong query/.
             </div>"""
 
-    st.markdown(
+    st.html(
         f"""
         <div style="background:white;border:1px solid #BBDAF0;border-top:4px solid {PRIMARY};
                     border-radius:10px;padding:14px 14px 10px 14px;">
@@ -143,8 +143,7 @@ def _render_sidebar_dataset_card() -> None:
           {total_html}
           {by_year_html}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # Trạng thái 8 dataset: thu gọn, không chiếm chỗ
@@ -153,7 +152,7 @@ def _render_sidebar_dataset_card() -> None:
     with st.expander(f"Kiểm tra dữ liệu · {ready}/{len(status)} sẵn sàng"):
         for name, ok in status.items():
             st.markdown(f"{'✅' if ok else '⚪'} `{name}`")
-        st.caption(f"Query dir: `{ds.QUERY_DIR}`")
+        st.caption(f"Nguồn dữ liệu cục bộ: `{ds.PROJECT_ROOT}`")
 
 
 with st.sidebar:

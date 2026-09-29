@@ -20,42 +20,37 @@ def render() -> None:
     # -------------------------------------------------------------------------
     st.markdown("### 🎛️ Cấu hình Mô hình & Phạm vi Dữ liệu")
     
-    col1, col2, col3 = st.columns([2, 1, 1])
-    
+    col1, col2 = st.columns([2, 3])
+
     with col1:
         model_type = st.selectbox("Lựa chọn Mô hình (Model)", MODEL_TYPE_OPTIONS)
-        
     with col2:
-        # Lấy danh sách Vintage thực tế từ dữ liệu
-        vintage_options = ["Tất cả (Portfolio)"] + [f"{y}" for y in range(2018, 2027)]
-        selected_vintage = st.selectbox("Năm giải ngân (Vintage)", vintage_options)
-
-    with col3:
-        score_options = ["Tất cả nhóm", "300-600 (Rủi ro cao)", "600-700 (Trung bình)", "700+ (An toàn)"]
-        selected_score = st.selectbox("Phân khúc điểm tín dụng", score_options)
-
-    # Hiển thị tóm tắt phạm vi dữ liệu đang chọn
-    st.info(f"📌 **Phạm vi phân tích:** Mô hình `{model_type}` | Vintage: `{selected_vintage}` | Phân khúc: `{selected_score}`")
+        st.info(
+            "Ước lượng mô hình dùng cohort complete-case 2016–2026. "
+            "Bảng PD theo vintage được xem riêng ở trang Rủi ro danh mục; "
+            "dashboard chưa có hệ số mô hình phân tầng theo vintage hoặc nhóm điểm."
+        )
 
     st.divider()
 
     # -------------------------------------------------------------------------
-    # TRUYỀN THAM SỐ LỌC VÀO CÁC HÀM XỬ LÝ
-    # -------------------------------------------------------------------------
-    # Lấy group filter tương ứng với lựa chọn người dùng
-    group_filter = "portfolio" if selected_vintage == "Tất cả (Portfolio)" else selected_vintage
-
     diagnostics = ds.get_model_diagnostics(model_type=model_type)
 
     if model_type == "Kaplan-Meier":
-        _render_km(group=group_filter)
+        _render_km()
     elif model_type in _HAZARD_MODELS:
         _render_hazard_model(model_type)
     elif model_type in _CIF_MODELS:
-        _render_cif_model(model_type, group=group_filter)
+        _render_cif_model(model_type)
 
     section_title("Model diagnostics")
-    if diagnostics.empty:
+    if model_type == "Kaplan-Meier":
+        st.info(
+            "Kaplan–Meier là phương pháp phi tham số, không ước lượng hệ số nên không có "
+            "kiểm định hội tụ hay giả định proportional hazards. Dải tin cậy 95% được thể hiện "
+            "trên biểu đồ survival phía trên."
+        )
+    elif diagnostics.empty:
         st.info(f"Chưa có model_diagnostics cho '{model_type}'.")
     else:
         show_cols = [c for c in [
@@ -64,7 +59,7 @@ def render() -> None:
         st.dataframe(diagnostics[show_cols].reset_index(drop=True), width="stretch")
 
     st.divider()
-    _render_competing_risk_comparison(group=group_filter)
+    _render_competing_risk_comparison()
 
 
 def _render_km(group: str = "portfolio") -> None:
@@ -127,7 +122,7 @@ def _render_cif_model(model_type: str) -> None:
         
         st.dataframe(
             summary_pd[["Tên mốc (Horizon)", "Tỷ lệ Vỡ nợ Dự báo (PD %)"]].reset_index(drop=True),
-            use_container_width=True
+            width="stretch"
         )
         
     if model_type == "Fine-Gray":
@@ -204,9 +199,9 @@ def _render_competing_risk_comparison(group: str = "portfolio") -> None:
                 rows.append({
                     "Mốc theo dõi (Horizon)": f"{h} Tháng",
                     "KM Naive PD (Bỏ qua Prepayment)": f"{val_km_pd:.2%}",
-                    "Fine-Gray Default CIF (Thực tế)": f"{val_cif:.2%}",
+                    "Aalen–Johansen Default CIF (Competing Risk)": f"{val_cif:.2%}",
                     "Mức Thổi phồng Rủi ro (Overestimate Gap)": f"+{diff:.2%}"
                 })
         
         if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            st.dataframe(pd.DataFrame(rows), width="stretch")

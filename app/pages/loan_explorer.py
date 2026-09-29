@@ -80,7 +80,7 @@ def render() -> None:
         c3.metric("Current Delinquency", str(last_row.get("current_delinquency_status", "—")))
 
     # ---- Timeline ----------------------------------------------------------------
-    section_title("Timeline", "Trục thời gian kể từ Operational Origination Date đã khóa trong specification (mục 5.1.2)")
+    section_title("Timeline", "Trục thời gian tính từ tháng origination proxy; tháng thanh toán đầu tiên là tháng 1.")
     if not timeline.empty:
         st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.plotly_chart(loan_timeline_chart(timeline, loan_age=loan_age), width="stretch")

@@ -170,6 +170,23 @@ The 2026 model dataset contains 5,123 eligible rows, 6 prepayments, 5,117
 censors, and no defaults. This is expected for a partial vintage with short
 follow-up.
 
+## Dashboard
+
+The Streamlit dashboard reads the currently published, integrity-checked
+release through `src/results/dashboard.py`; loan profile and monthly history
+come from the generated local Parquet files. Start it from the project root:
+
+```powershell
+python -m streamlit run app/app.py
+```
+
+The current release provides portfolio-level PD, eligible vintage PD, KM and
+Aalen–Johansen curves, Cox/Fine–Gray/cause-specific coefficients, diagnostics,
+and loan-level monthly history. It does not yet contain CIF estimates grouped
+by FICO, LTV, or DTI, so the dashboard reports that limitation instead of
+showing fabricated group comparisons. Legacy `query/` exports remain a
+fallback for older runs.
+
 ## Tests and validation
 
 Run the event regression suite:
