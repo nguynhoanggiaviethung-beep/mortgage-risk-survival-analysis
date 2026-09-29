@@ -26,6 +26,7 @@ from src.config import (
 
 from src.clean_data import (
     clean_sample_year,
+    export_standardized_tables,
 )
 
 
@@ -358,6 +359,11 @@ def main():
     if failed:
 
         sys.exit(1)
+
+    # Downstream model-data generation reads these standardized master files.
+    # Build them as part of the successful cleaning pipeline so the documented
+    # next step does not depend on a separate manual function call.
+    export_standardized_tables()
 
 
 if __name__ == "__main__":

@@ -123,7 +123,14 @@ Freddie Mac 2016–2026 Sample Dataset.
 
 ### Time Origin
 
-Origination.
+Origination Month. The Freddie Mac extract used by this project provides First
+Payment Date but no direct origination date. We therefore define
+`operational_origination_date` as the explicit proxy `First Payment Date - 1
+calendar month`. Analysis time is the calendar-month difference from this proxy;
+the first payment month is analysis month 1. Under this proxy, the calculation
+is numerically equivalent to `performance_month - first_payment_month + 1`.
+`freddie_loan_age` remains a separate source variable and is not substituted for
+the study clock.
 
 ### Unit of Analysis
 

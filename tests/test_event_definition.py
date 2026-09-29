@@ -295,10 +295,11 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_d90_default(self):
-        # D90 không đủ để gán default theo định nghĩa nhóm.
+        # First 90+ DPD month is the observed default time.
         loan = self._loan("L_DEFAULT")
-        self.assertEqual(loan["event_type"], "CENSOR")
-        self.assertEqual(loan["event_source"], "RIGHT_CENSOR")
+        self.assertEqual(loan["event_type"], "DEFAULT")
+        self.assertEqual(loan["event_month"], 202002)
+        self.assertEqual(loan["event_source"], "D90")
 
     def test_prepayment(self):
 
@@ -353,10 +354,11 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_ra_default(self):
-        # RA không tự tạo default.
+        # RA is an additional default signal.
         loan = self._loan("L_RA")
-        self.assertEqual(loan["event_type"], "CENSOR")
-        self.assertEqual(loan["event_source"], "RIGHT_CENSOR")
+        self.assertEqual(loan["event_type"], "DEFAULT")
+        self.assertEqual(loan["event_month"], 202002)
+        self.assertEqual(loan["event_source"], "RA")
 
 
     # =====================================================
@@ -390,10 +392,10 @@ class TestEventDefinition(unittest.TestCase):
     # =====================================================
 
     def test_same_month_default_wins(self):
-        # D90 + ZB01 không phải hai competing events theo đặc tả.
+        # Same-month default evidence takes priority over ZB01 prepayment.
         loan = self._loan("L_CONFLICT")
-        self.assertEqual(loan["event_type"], "PREPAYMENT")
-        self.assertFalse(loan["same_month_default_prepay_flag"])
+        self.assertEqual(loan["event_type"], "DEFAULT")
+        self.assertTrue(loan["same_month_default_prepay_flag"])
 
     # =====================================================
     # TEST ADMIN CENSOR

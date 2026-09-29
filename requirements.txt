@@ -1,5 +1,6 @@
 pandas
 polars
+PyYAML
 numpy
 scipy
 scikit-learn

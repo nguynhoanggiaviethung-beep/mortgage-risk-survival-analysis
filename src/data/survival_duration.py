@@ -57,7 +57,6 @@ def build_survival_duration(
         .with_columns(
             _date_month_index("operational_origination_date")
             .alias("_origin_index"),
-
             _yyyymm_month_index("first_observed_month")
             .alias("_entry_index"),
 
@@ -65,6 +64,8 @@ def build_survival_duration(
             .alias("_exit_index"),
         )
         .with_columns(
+            # Time origin is the operational origination month proxy.
+            # The first payment month is therefore analysis month 1.
             (pl.col("_entry_index") - pl.col("_origin_index"))
             .cast(pl.Int32)
             .alias("entry_time_month"),
@@ -598,6 +599,7 @@ def export_loan_age(years):
         survival = pl.scan_parquet(survival_path).select(
             "loan_id",
             "vintage_year",
+            "first_payment_month",
             "operational_origination_date",
             "entry_time_month",
             "exit_time_month",
@@ -745,7 +747,10 @@ def export_loan_age(years):
     report = {
         "years": years,
         "cutoff": 202603,
-        "time_origin": "first_payment_month minus 1 calendar month",
+        "time_origin": (
+            "operational_origination_date proxy (first payment month - 1 calendar month); "
+            "first payment month is analysis month 1"
+        ),
         "unit": "calendar months",
         "checks": checks,
         "duplicate_loan_month_keys": duplicate_keys,

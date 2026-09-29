@@ -152,10 +152,16 @@ def audit_year(
 
         .with_columns(
 
-            date_month_index(
-                "first_payment_month"
+            (
+                pl.col("first_payment_month").dt.offset_by("-1mo").dt.year()
+                * 12
+                + pl.col("first_payment_month").dt.offset_by("-1mo").dt.month()
             )
             .alias(
+                "_origin_index"
+            ),
+
+            date_month_index("first_payment_month").alias(
                 "_first_payment_index"
             ),
 
@@ -176,9 +182,8 @@ def audit_year(
                 )
                 -
                 pl.col(
-                    "_first_payment_index"
+                    "_origin_index"
                 )
-                + 1
             )
             .cast(
                 pl.Int32
@@ -323,7 +328,7 @@ def audit_year(
     # =====================================================
     # MONTHLY PERFORMANCE CLOCK AUDIT
     #
-    # Fixed clock from original First Payment Month.
+    # Fixed clock from the operational origination-month proxy.
     # =====================================================
 
     event_origin = (
@@ -357,11 +362,11 @@ def audit_year(
                 "_reporting_index"
             ),
 
-            date_month_index(
-                "first_payment_month"
-            )
+            (pl.col("first_payment_month").dt.offset_by("-1mo")
+             .dt.year() * 12
+             + pl.col("first_payment_month").dt.offset_by("-1mo").dt.month())
             .alias(
-                "_first_payment_index"
+                "_origin_index"
             ),
 
         )
@@ -374,9 +379,8 @@ def audit_year(
                 )
                 -
                 pl.col(
-                    "_first_payment_index"
+                    "_origin_index"
                 )
-                + 1
             )
             .cast(
                 pl.Int32
@@ -865,15 +869,15 @@ def write_report(
     lines.append("")
 
     lines.append(
-        "Primary survival clock uses the original "
-        "First Payment Month as a fixed time origin."
+        "Primary survival clock uses an operational origination-month proxy "
+        "(First Payment Month minus one calendar month) as a fixed origin."
     )
 
     lines.append("")
 
     lines.append(
-        "`duration_months = event_month - first_payment_month + 1` "
-        "on a calendar-month scale."
+        "`duration_months = event_month - operational_origination_month_proxy` "
+        "on a calendar-month scale; the first payment month is month 1."
     )
 
     lines.append("")

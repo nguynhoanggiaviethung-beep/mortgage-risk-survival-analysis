@@ -1830,7 +1830,8 @@ def export_standardized_tables():
             pl.col("maturity_date").alias("maturity_month"),
             pl.col("vintage_year").alias("origination_vintage"),
 
-            # Operational definition đã khóa trong Project Specification.
+            # Freddie data has First Payment Date but no direct origination date.
+            # Retain a clearly documented one-month proxy for the origin clock.
             pl.col("first_payment_date").dt.offset_by("-1mo")
             .alias("operational_origination_date"),
         )

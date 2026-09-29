@@ -184,6 +184,10 @@ def main():
             .sum()
         )
 
+        total_excluded = (
+            summary["excluded_missing_effective_date"].sum()
+        )
+
 
         print(
             "\n"
@@ -219,6 +223,10 @@ def main():
         )
 
         print(
+            f"Excluded (invalid event date): {total_excluded:,}"
+        )
+
+        print(
             f"Same-month conflicts:  "
             f"{total_conflicts:,}"
         )
@@ -244,7 +252,8 @@ def main():
 
         print(
             f"Total Performance loans       "
-            f"= {total_loans:,}"
+            f"= {total_loans + total_excluded:,} "
+            f"({total_loans:,} classified + {total_excluded:,} excluded)"
         )
 
 
