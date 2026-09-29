@@ -143,7 +143,9 @@ interest rate, and mutually exclusive indicators for 1-month and 2-month
 delinquency. The outcome is first 90+ DPD. The 90+ status in the terminal
 event month is excluded from the predictors to prevent target leakage; as a
 result, a 3+-month delinquency indicator has no variation in eligible
-pre-event intervals and is not included in the model.
+pre-event intervals and is not included in the model. The fitted model uses a
+fixed L2 penalizer of 0.1 to stabilize the near-separated two-month delinquency
+predictor; the value and model-based variance are recorded in diagnostics.
 
 ### Event Definition
 

@@ -106,7 +106,9 @@ validated methodology:
 - The time-varying default Cox model uses prior-month UPB, interest rate, and
   1-/2-month delinquency indicators. The 90+ DPD event-month value is excluded
   to prevent target leakage; a 3+-month delinquency predictor has no variation
-  before the first-90+ event and is not fitted.
+  before the first-90+ event and is not fitted. The time-varying fit uses a
+  fixed L2 penalizer of 0.1 to stabilize near-separation; it is recorded in
+  model diagnostics.
 
 See the audit reports in `reports/` and the implementation in `src/data/` for
 the complete definitions and preserved evidence columns.

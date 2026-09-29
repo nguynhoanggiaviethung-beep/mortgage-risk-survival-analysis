@@ -41,7 +41,7 @@ DATA_VERSION = "freddie_sample_2016_2026_cutoff_202603_v2"
 MODEL_VERSION_REGISTRY: dict[str, str] = {
     "kaplan_meier": "km_v1",
     "cox_ph": "cox_ph_v1",
-    "time_varying_cox": "tv_cox_v3",
+    "time_varying_cox": "tv_cox_v4",
     "cause_specific_default": "cause_specific_default_v1",
     "cause_specific_prepayment": "cause_specific_prepayment_v1",
     "aalen_johansen": "aalen_johansen_v1",

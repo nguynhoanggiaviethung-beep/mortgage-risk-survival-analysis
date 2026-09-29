@@ -18,6 +18,8 @@ from src.survival.time_varying_input import (
     validate_time_varying_cox_input,
 )
 
+TIME_VARYING_COX_L2_PENALIZER = 0.1
+
 
 FrameLike: TypeAlias = pl.DataFrame | pl.LazyFrame
 PathSource: TypeAlias = str | PathLike[str]
@@ -46,6 +48,7 @@ TIME_VARYING_COX_DIAGNOSTIC_DTYPES: dict[str, pl.DataType] = {
     "n_delayed_entry_loans": pl.UInt32,
     "n_gap_intervals": pl.UInt32,
     "max_interval_length_months": pl.Int32,
+    "l2_penalizer": pl.Float64,
     "variance_type": pl.String,
     "log_likelihood": pl.Float64,
     "partial_aic": pl.Float64,
@@ -93,7 +96,7 @@ def fit_time_varying_cox_model(
     frame: FrameLike,
     confidence_level: float = 0.95,
 ) -> TimeVaryingCoxFitResult:
-    """Fit the locked Step 5A model using model-based variance only."""
+    """Fit Step 5A with fixed L2 stabilization and model-based variance."""
     if not isinstance(confidence_level, (int, float)) or isinstance(
         confidence_level, bool
     ):
@@ -125,7 +128,7 @@ def fit_time_varying_cox_model(
     pandas_input = data.select(fit_columns).to_pandas()
     estimator = CoxTimeVaryingFitter(
         alpha=1.0 - float(confidence_level),
-        penalizer=0.0,
+        penalizer=TIME_VARYING_COX_L2_PENALIZER,
         l1_ratio=0.0,
     )
 
@@ -194,6 +197,7 @@ def fit_time_varying_cox_model(
         "max_interval_length_months": int(
             data["interval_length_months"].max()
         ),
+        "l2_penalizer": TIME_VARYING_COX_L2_PENALIZER,
         "variance_type": "model_based",
         "log_likelihood": float(estimator.log_likelihood_),
         "partial_aic": float(estimator.AIC_partial_),
@@ -290,6 +294,10 @@ def validate_time_varying_cox_diagnostics(frame: FrameLike) -> pl.DataFrame:
     if row["variance_type"] != "model_based":
         raise TimeVaryingCoxModelError(
             "Step 5A variance_type must be model_based."
+        )
+    if row["l2_penalizer"] != TIME_VARYING_COX_L2_PENALIZER:
+        raise TimeVaryingCoxModelError(
+            "Step 5A L2 penalizer differs from the locked model version."
         )
     if row["n_events"] + row["n_censored_loans"] != row["n_loans"]:
         raise TimeVaryingCoxModelError("Diagnostic loan counts are inconsistent.")
