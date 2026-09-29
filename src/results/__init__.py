@@ -1,5 +1,15 @@
 """Production analytical result/run infrastructure."""
 
+from src.results.dashboard import (
+    DashboardRelease,
+    model_diagnostics,
+    pd_results,
+    portfolio_summary,
+    resolve_dashboard_release,
+    risk_driver_results,
+    survival_results,
+    vintage_results,
+)
 from src.results.integrity import ArtifactIntegrityError, sha256_file
 from src.results.manifest import (
     DATA_VERSION,
@@ -29,6 +39,7 @@ from src.results.manifest import (
 __all__ = [
     "ArtifactIntegrityError",
     "ArtifactRecord",
+    "DashboardRelease",
     "DATA_VERSION",
     "MODEL_VERSION_REGISTRY",
     "ResultManifestError",
@@ -44,11 +55,18 @@ __all__ = [
     "load_current_run",
     "load_run_manifest",
     "mark_run_validated",
+    "model_diagnostics",
+    "pd_results",
+    "portfolio_summary",
     "publish_run",
     "register_artifact",
+    "resolve_dashboard_release",
+    "risk_driver_results",
     "sha256_file",
+    "survival_results",
     "transition_run",
     "validate_run_manifest",
     "verify_artifacts",
+    "vintage_results",
     "write_run_manifest",
 ]
