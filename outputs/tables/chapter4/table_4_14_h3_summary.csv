@@ -1,0 +1,9 @@
+﻿Nội dung,Kết quả
+Default probability – Kaplan–Meier,"0,000695% (12M) → 0,031737% (36M) → 0,067507% (60M)"
+Default CIF – Competing Risks,"0,000653% (12M) → 0,023767% (36M) → 0,043852% (60M)"
+Chênh lệch tại 12M,"+0,000042 điểm % (KM cao hơn 6,4%)"
+Chênh lệch tại 24M,"+0,001910 điểm % (KM cao hơn 21,6%)"
+Chênh lệch tại 36M,"+0,007970 điểm % (KM cao hơn 33,5%)"
+Chênh lệch tại 60M*,"+0,023655 điểm % (KM cao hơn 53,9%)"
+Kết quả Fine–Gray,"Credit Score (SHR=0.9854, p<0.001), LTV (SHR=1.0858, p<0.001), DTI (SHR=1.0188, p=0.038), Interest Rate (SHR=1.3638, p<0.001) có ý nghĩa"
+Kết luận H3,Hỗ trợ (Supported)

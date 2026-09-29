@@ -10,6 +10,11 @@ from src.results.dashboard import (
     survival_results,
     vintage_results,
 )
+from src.results.chapter4_tables import (
+    build_all_chapter4_tables,
+    export_chapter4_tables,
+    generate_chapter4_figures,
+)
 from src.results.integrity import ArtifactIntegrityError, sha256_file
 from src.results.manifest import (
     DATA_VERSION,
@@ -47,11 +52,14 @@ __all__ = [
     "RunManifest",
     "RunStatus",
     "SPECIFICATION_VERSION",
+    "build_all_chapter4_tables",
     "build_data_version",
     "collect_runtime_versions",
     "create_run_id",
     "create_run_manifest",
     "current_git_commit",
+    "export_chapter4_tables",
+    "generate_chapter4_figures",
     "load_current_run",
     "load_run_manifest",
     "mark_run_validated",

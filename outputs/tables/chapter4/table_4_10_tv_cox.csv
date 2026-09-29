@@ -1,0 +1,6 @@
+﻿Biến,Time-varying term,Hazard Ratio,95% CI,p-value
+Credit Score,Static,1.0006,0.9983 – 1.003,0.6022
+Original LTV,Static,1.0018,0.9935 – 1.0102,0.6644
+DTI,Static,0.9921,0.9804 – 1.0040,0.1932
+Interest Rate,Static,0.3527,0.0801 – 1.5521,0.1681
+Loan Term,Static,0.3527,0.9963 – 1.0013,0.3323

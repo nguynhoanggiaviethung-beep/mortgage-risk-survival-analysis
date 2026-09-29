@@ -1,0 +1,5 @@
+﻿Phân nhóm,Số khoản vay,Default Count,Default CIF 36M (%),KM 1-S(36) (%),Tỷ lệ thổi phồng
+FICO < 660 (Subprime),14.475,39,"0,2145%","0,2890%","+34,7%"
+FICO >= 720 (Prime),412.380,85,"0,0142%","0,0198%","+39,4%"
+Original LTV > 80% (High LTV),98.712,81,"0,0641%","0,0885%","+38,1%"
+Original LTV <= 80% (Low LTV),400.681,100,"0,0162%","0,0210%","+29,6%"

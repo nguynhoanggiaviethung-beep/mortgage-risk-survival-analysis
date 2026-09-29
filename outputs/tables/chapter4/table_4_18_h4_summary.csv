@@ -1,0 +1,8 @@
+﻿Nội dung,Kết quả
+Khác biệt Kaplan–Meier giữa Vintage,Có khác biệt rõ rệt (Xác suất sinh tồn S(t) phân hóa giữa các năm phát hành)
+Khác biệt Default CIF giữa Vintage,Có khác biệt rõ rệt (Tốc độ tích lũy Default CIF khác nhau qua từng giai đoạn vĩ mô)
+So sánh tại 12M,"Khác biệt không đáng kể (CIF 12M đều ở mức 0,0000% – 0,0021%)"
+So sánh tại 24M,"Bắt đầu phân hóa (Vintage 2017 đạt 0,0167% và 2023 đạt 0,0221%, cao hơn hẳn 2019–2020)"
+So sánh tại 36M,"Phân hóa mạnh nhất (Vintage 2017 đạt 0,0333%, 2022 đạt 0,0302%, trong khi 2020 là 0,0000%)"
+Kết quả Cox theo Vintage,Được thay thế bởi Aalen–Johansen CIF (Do dữ liệu bị tách biệt và không hội tụ)
+Kết luận H4,Hỗ trợ (Supported)

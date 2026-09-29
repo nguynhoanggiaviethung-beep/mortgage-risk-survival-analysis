@@ -1,0 +1,7 @@
+﻿Giả thuyết,Mô hình kiểm định,Chỉ số thực nghiệm,Kỳ vọng,Thực tế,Kết luận
+H1a: Credit Score có tác động nghịch chiều đến rủi ro vỡ nợ,Cox đa biến & Fine–Gray,"HR = 0,9875; SHR = 0,9854 (p < 0,001)",Âm (-),Âm (-),Chấp nhận giả thuyết H1a
+H1b: Original LTV có tác động đồng chiều đến rủi ro vỡ nợ,Cox đa biến & Fine–Gray,"HR = 1,0824; SHR = 1,0858 (p < 0,001)",Dương (+),Dương (+),Chấp nhận giả thuyết H1b
+H1c: Original DTI có tác động đồng chiều đến rủi ro vỡ nợ,Cox đa biến & Fine–Gray,"HR = 1,0191 (p = 0,0499); SHR = 1,0188 (p = 0,0382)",Dương (+),Dương (+),Chấp nhận giả thuyết H1c
+H2: Lãi suất khoản vay có tác động đồng chiều đến rủi ro vỡ nợ,Cox đa biến & Fine–Gray,"HR = 1,7786; SHR = 1,3638 (p < 0,001)",Dương (+),Dương (+),Chấp nhận giả thuyết H2
+H3: Mô hình Kaplan–Meier truyền thống thổi phồng xác suất vỡ nợ so với CIF,"So sánh 1-KM vs Aalen–Johansen CIF tại 12, 24, 36, 60 tháng","KM thổi phồng từ +6,4% (12M) lên +53,9% (60M)",KM > CIF,KM > CIF (sai lệch tăng dần theo thời gian),Chấp nhận giả thuyết H3
+H4: Tác động của các yếu tố rủi ro thay đổi khi kiểm soát rủi ro cạnh tranh,So sánh Cause-Specific Cox HR vs Fine–Gray SHR,"Lãi suất: HR = 1,7786 giảm xuống SHR = 1,3638 do trả nợ trước hạn cạnh tranh mạnh",HR khác SHR,HR > SHR rõ rệt ở biến lãi suất và LTV,Chấp nhận giả thuyết H4

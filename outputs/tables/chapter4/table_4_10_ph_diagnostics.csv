@@ -1,0 +1,7 @@
+﻿Biến,chisq,df,p-value,Kết luận PH
+Credit Score,"0,7412",1,"0,3893",Thỏa mãn
+Original LTV,"12,8541",1,"0,0003",Vi phạm
+DTI,"0,0824",1,"0,7741",Thỏa mãn
+Interest Rate,"2,4109",1,"0,1205",Thỏa mãn
+Loan Term,"0,5193",1,"0,4711",Thỏa mãn
+GLOBAL TEST,"15,8204",5,"0,0074",Vi phạm toàn cục

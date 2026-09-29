@@ -1,0 +1,7 @@
+﻿Biến,Test statistic (χ²),p-value,Kết luận ở mức 5%
+Credit Score,"3,13847","0,076466",Chưa có bằng chứng vi phạm PH
+Original LTV,"21,61238","0,000003337",Có bằng chứng vi phạm PH
+DTI,"0,83542","0,360711",Chưa có bằng chứng vi phạm PH
+Interest Rate,"0,74686","0,387472",Chưa có bằng chứng vi phạm PH
+Loan Term,"0,24948","0,617439",Chưa có bằng chứng vi phạm PH
+Global test,"26,90552","0,00005951",Bác bỏ giả định PH chung

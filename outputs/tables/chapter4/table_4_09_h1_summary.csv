@@ -1,0 +1,6 @@
+﻿Yếu tố,Kỳ vọng,Kết quả thực tế,Hỗ trợ H1
+Credit Score,HR < 1,"HR = 0,98747; p < 0,001",Có
+Original LTV,HR > 1,"HR = 1,08235; p < 0,001","Có, nhưng cần lưu ý vi phạm PH"
+DTI,HR > 1,"HR = 1,01914; p = 0,049895","Có, sát ngưỡng 5%"
+Interest Rate,Theo giả thuyết đã đặt,"HR = 1,77864; p < 0,001",Có nếu kỳ vọng HR > 1
+Loan Term,Theo giả thuyết đã đặt,"HR = 0,99904; p = 0,601082",Chưa đủ bằng chứng
