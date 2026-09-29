@@ -432,12 +432,13 @@ def run_ph_assumption_test(
     cox_result: CoxFitResult,
     frame: FrameLike,
     alpha: float = ALPHA,
+    rscript: Path | None = None,
 ) -> PHTestResult:
     """Run rank and KM cox.zph diagnostics on the Step 3 specification."""
     if float(alpha) != ALPHA:
         raise PHTestError(f"Step 4 alpha is locked at {ALPHA}.")
     data = validate_ph_test_input(cox_result, frame)
-    rscript, r_version, survival_version = inspect_r_environment()
+    rscript, r_version, survival_version = inspect_r_environment(rscript)
     r_input = data.select(
         "entry_time_month",
         "exit_time_month",

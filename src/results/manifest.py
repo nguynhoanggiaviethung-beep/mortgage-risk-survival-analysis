@@ -19,7 +19,7 @@ from enum import Enum
 from importlib.metadata import PackageNotFoundError, version
 from os import PathLike
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any, Callable, TypeAlias
 
 from src.results.integrity import (
     ArtifactIntegrityError,
@@ -435,8 +435,9 @@ def publish_run(
     current_path: PathSource,
     repository_root: PathSource,
     published_at_utc: datetime | None = None,
+    pointer_writer: Callable[[PathSource, Mapping[str, Any]], Path] = atomic_write_json,
 ) -> RunManifest:
-    """Publish a validated production run and atomically advance current.json."""
+    """Publish and verify a run, rolling back both files on reported failure."""
     item = verify_artifacts(manifest, run_root=run_root)
     if item.environment is not RunEnvironment.PRODUCTION:
         raise ResultManifestError("Only a PRODUCTION run may be published.")
@@ -456,15 +457,49 @@ def publish_run(
 
     published = transition_run(item, RunStatus.PUBLISHED)
     manifest_path = run_directory / "manifest.json"
-    write_run_manifest(published, manifest_path)
     publication_time = published_at_utc or datetime.now(timezone.utc)
     pointer = {
         "run_id": published.run_id,
         "manifest_relative_path": manifest_path.relative_to(root).as_posix(),
         "published_at_utc": _utc_iso(publication_time),
     }
-    atomic_write_json(pointer_path, pointer)
-    return published
+    previous_pointer: dict[str, Any] | None = None
+    if pointer_path.exists():
+        previous = load_current_run(pointer_path, repository_root=root)
+        previous_pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+        if previous.run_id == published.run_id:
+            raise ResultManifestError("Run is already current production.")
+
+    write_run_manifest(published, manifest_path)
+    try:
+        pointer_writer(pointer_path, pointer)
+        loaded = load_current_run(pointer_path, repository_root=root)
+        if loaded.run_id != published.run_id:
+            raise ResultManifestError(
+                "Publication verification did not resolve the intended run."
+            )
+        return loaded
+    except Exception as publication_error:
+        rollback_errors: list[str] = []
+        try:
+            write_run_manifest(item, manifest_path)
+        except Exception as exc:  # pragma: no cover - catastrophic filesystem failure
+            rollback_errors.append(f"manifest rollback failed: {exc}")
+        try:
+            if previous_pointer is None:
+                pointer_path.unlink(missing_ok=True)
+            else:
+                atomic_write_json(pointer_path, previous_pointer)
+        except Exception as exc:  # pragma: no cover - catastrophic filesystem failure
+            rollback_errors.append(f"pointer rollback failed: {exc}")
+        if rollback_errors:
+            raise ResultManifestError(
+                "Publication failed and rollback was incomplete: "
+                + "; ".join(rollback_errors)
+            ) from publication_error
+        raise ResultManifestError(
+            f"Publication failed and was rolled back: {publication_error}"
+        ) from publication_error
 
 
 def load_current_run(
