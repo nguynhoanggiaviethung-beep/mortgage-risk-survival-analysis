@@ -109,6 +109,26 @@ VINTAGE_SCHEMA = {
     "code_commit": pl.String,
 }
 
+GROUPED_PD_SCHEMA = {
+    "feature": pl.String,
+    "group_value": pl.String,
+    "horizon_months": pl.Int16,
+    "horizon_role": pl.String,
+    "default_cif": pl.Float64,
+    "prepayment_cif": pl.Float64,
+    "pd": pl.Float64,
+    "loan_count": pl.UInt32,
+    "n_at_risk": pl.UInt32,
+    "default_count": pl.UInt32,
+    "prepayment_count": pl.UInt32,
+    "follow_up_eligible": pl.Boolean,
+    "follow_up_status": pl.String,
+    "data_version": pl.String,
+    "model_version": pl.String,
+    "run_id": pl.String,
+    "code_commit": pl.String,
+}
+
 DIAGNOSTIC_SCHEMA = {
     "model": pl.String,
     "model_version": pl.String,
@@ -205,6 +225,20 @@ def pd_results(release: DashboardRelease) -> pl.DataFrame:
         release,
         PD_SCHEMA,
     ).sort("horizon_months")
+
+
+def grouped_pd_results(release: DashboardRelease) -> pl.DataFrame:
+    source = _read(release, "grouped_pd_horizons").filter(
+        pl.col("horizon_months").is_in([12, 24, 36, 60])
+    )
+    return _attach(
+        source.with_columns(
+            pl.lit(release.manifest.data_version).alias("data_version"),
+            pl.lit(release.manifest.model_versions["grouped_pd"]).alias("model_version"),
+            pl.lit(release.manifest.run_id).alias("run_id"),
+            pl.lit(release.manifest.code_commit).alias("code_commit"),
+        ), release, GROUPED_PD_SCHEMA,
+    ).sort(["feature", "group_value", "horizon_months"])
 
 
 def survival_results(release: DashboardRelease) -> pl.DataFrame:
@@ -334,12 +368,14 @@ def model_diagnostics(release: DashboardRelease) -> pl.DataFrame:
 __all__ = [
     "DashboardRelease",
     "DIAGNOSTIC_SCHEMA",
+    "GROUPED_PD_SCHEMA",
     "PD_SCHEMA",
     "PORTFOLIO_SCHEMA",
     "RISK_DRIVER_SCHEMA",
     "SURVIVAL_SCHEMA",
     "VINTAGE_SCHEMA",
     "model_diagnostics",
+    "grouped_pd_results",
     "pd_results",
     "portfolio_summary",
     "resolve_dashboard_release",

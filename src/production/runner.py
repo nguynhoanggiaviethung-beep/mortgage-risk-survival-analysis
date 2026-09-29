@@ -19,6 +19,7 @@ from src.competing_risks.fine_gray import (
     fit_fine_gray_default,
     write_fine_gray_results,
 )
+from src.competing_risks.grouped_pd import build_grouped_pd, write_grouped_pd
 from src.competing_risks.pd_vintage import (
     PDVintageResult,
     build_overall_pd_horizons,
@@ -212,6 +213,16 @@ def build_complete_release(
             "vintage_horizon_results",
         ):
             manifest = _register(manifest, paths, name)
+
+        grouped_curves, grouped_horizons = build_grouped_pd(analysis, rscript=rscript)
+        write_grouped_pd(
+            grouped_curves,
+            grouped_horizons,
+            paths.artifact("grouped_cif_results"),
+            paths.artifact("grouped_pd_horizons"),
+        )
+        manifest = _register(manifest, paths, "grouped_cif_results")
+        manifest = _register(manifest, paths, "grouped_pd_horizons")
 
         fine_gray = fit_fine_gray_default(complete, rscript=rscript)
         write_fine_gray_results(
