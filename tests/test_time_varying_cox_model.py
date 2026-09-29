@@ -171,6 +171,19 @@ class TestTimeVaryingCoxModel(unittest.TestCase):
             diagnostic["convergence_warning"],
         )
 
+    def test_fit_uses_validated_step_size(self):
+        original_fit = CoxTimeVaryingFitter.fit
+        captured_fit_options = []
+
+        def fit_with_capture(estimator, *args, **kwargs):
+            captured_fit_options.append(kwargs.get("fit_options"))
+            return original_fit(estimator, *args, **kwargs)
+
+        with patch.object(CoxTimeVaryingFitter, "fit", new=fit_with_capture):
+            fit_time_varying_cox_model(self.input)
+
+        self.assertEqual(captured_fit_options, [{"step_size": 0.1}])
+
     def test_invalid_input_and_confidence_level_are_rejected(self):
         missing = self.input.drop("lag_dq_ra")
         with self.assertRaisesRegex(TimeVaryingCoxModelError, "missing required"):

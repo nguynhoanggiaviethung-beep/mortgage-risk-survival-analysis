@@ -140,6 +140,7 @@ def fit_time_varying_cox_model(
                 event_col="default_event",
                 robust=False,
                 show_progress=False,
+                fit_options={"step_size": 0.1},
             )
     except (ConvergenceError, np.linalg.LinAlgError) as exc:
         raise TimeVaryingCoxModelError(
