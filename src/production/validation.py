@@ -36,6 +36,8 @@ from src.results.writers import atomic_write_json
 from src.survival.cox_model import validate_cox_diagnostics, validate_cox_results
 from src.survival.kaplan_meier import validate_km_results
 from src.survival.ph_test import (
+    PH_DIAGNOSTIC_DTYPES,
+    PH_GLOBAL_DIAGNOSTIC_DTYPES,
     validate_ph_diagnostics,
     validate_ph_global_diagnostics,
 )
@@ -50,7 +52,13 @@ class ProductionValidationError(ValueError):
 
 
 def _read_table(path: Path) -> pl.DataFrame:
-    return pl.read_csv(path) if path.suffix == ".csv" else pl.read_parquet(path)
+    if path.suffix == ".csv":
+        schema = {
+            "ph_diagnostics.csv": PH_DIAGNOSTIC_DTYPES,
+            "ph_global_diagnostics.csv": PH_GLOBAL_DIAGNOSTIC_DTYPES,
+        }.get(path.name)
+        return pl.read_csv(path, schema_overrides=schema)
+    return pl.read_parquet(path)
 
 
 def _validator_map() -> dict[str, Callable[[pl.DataFrame], pl.DataFrame]]:

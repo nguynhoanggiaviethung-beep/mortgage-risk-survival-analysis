@@ -4,6 +4,8 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+import polars as pl
+
 from src.production.contracts import (
     ANALYTICAL_ARTIFACTS,
     COMPLETE_RELEASE_ARTIFACTS,
@@ -11,6 +13,7 @@ from src.production.contracts import (
 )
 from src.production.validation import (
     ProductionValidationError,
+    _read_table,
     require_complete_registered_inventory,
     validate_production_release,
 )
@@ -86,6 +89,16 @@ class TestProductionValidation(unittest.TestCase):
         object.__setattr__(manifest, "artifacts", records[:-1])
         with self.assertRaises(ProductionValidationError):
             require_complete_registered_inventory(manifest)
+
+    def test_ph_csvs_are_read_with_canonical_degrees_of_freedom_dtype(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("ph_diagnostics.csv", "ph_global_diagnostics.csv"):
+                path = Path(directory) / name
+                path.write_text("degrees_of_freedom\n5\n", encoding="utf-8")
+                self.assertEqual(
+                    _read_table(path).schema["degrees_of_freedom"],
+                    pl.Int32,
+                )
 
 
 if __name__ == "__main__":
