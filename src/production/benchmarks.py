@@ -25,7 +25,7 @@ from src.survival.time_varying_cox_model import (
 )
 from src.survival.time_varying_input import (
     STEP5A_PREDICTORS,
-    TIME_VARYING_COLUMNS,
+    TV_COX_TIME_VARYING_PREDICTORS,
     build_time_varying_cox_input,
     validate_time_varying_cox_input,
 )
@@ -313,7 +313,7 @@ def build_tv_cox_benchmark_preflight(data: pl.DataFrame) -> dict[str, object]:
     terminal_defaults = pl.col("terminal_interval_flag") & (
         pl.col("default_event") == 1
     )
-    for predictor in TIME_VARYING_COLUMNS[2:]:
+    for predictor in TV_COX_TIME_VARYING_PREDICTORS[2:]:
         counts = data.select(
             pl.col(predictor).sum().alias("positive_count_overall"),
             pl.when(terminal_defaults)
@@ -515,8 +515,10 @@ def run_tv_cox_benchmark(
         )
         stage = "MODEL_FIT"
         fit_started = time.perf_counter()
-        result = fit_time_varying_cox_model(validated)
-        metrics["fit_runtime_seconds"] = time.perf_counter() - fit_started
+        try:
+            result = fit_time_varying_cox_model(validated)
+        finally:
+            metrics["fit_runtime_seconds"] = time.perf_counter() - fit_started
         stage = "RESULT_VALIDATION"
         validate_time_varying_cox_results(result.coefficients)
         diagnostic = validate_time_varying_cox_diagnostics(result.diagnostics).row(

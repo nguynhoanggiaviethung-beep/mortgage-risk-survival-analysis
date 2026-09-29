@@ -107,11 +107,11 @@ class TestProductionBenchmarks(unittest.TestCase):
         ))
         self.assertEqual(result["interval_integrity"]["status"], "PASS")
         self.assertEqual(result["terminal_default_event_count"], 20)
-        self.assertEqual(result["initial_information_matrix_dimension"], 12)
+        self.assertEqual(result["initial_information_matrix_dimension"], 8)
         self.assertTrue(result["initial_information_matrix_all_finite"])
         self.assertIn(
             "positive_count_default_terminal_intervals",
-            result["binary_delinquency_support"]["lag_dq_xx"],
+            result["binary_delinquency_support"]["lag_dq_3plus"],
         )
 
     def test_unicode_output_path_is_safe_for_cp1252_console(self):
@@ -166,6 +166,7 @@ class TestProductionBenchmarks(unittest.TestCase):
             report["identifiability_preflight"], {"status": "COMPLETED"}
         )
         self.assertEqual(report["convergence_status"], "FAILED")
+        self.assertIsNotNone(report["fit_runtime_seconds"])
         self.assertFalse(report["is_production_result"])
 
 

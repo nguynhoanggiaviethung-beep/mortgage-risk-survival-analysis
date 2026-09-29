@@ -28,7 +28,13 @@ TIME_VARYING_COLUMNS = [
     "lag_dq_ra",
 ]
 
-STEP5A_PREDICTORS = [*CORE_COLUMNS, *TIME_VARYING_COLUMNS]
+TV_COX_TIME_VARYING_PREDICTORS = [
+    "lag_current_actual_upb",
+    "lag_current_interest_rate",
+    "lag_dq_3plus",
+]
+
+STEP5A_PREDICTORS = [*CORE_COLUMNS, *TV_COX_TIME_VARYING_PREDICTORS]
 
 TIME_VARYING_INPUT_DTYPES: dict[str, pl.DataType] = {
     "loan_id": pl.String,

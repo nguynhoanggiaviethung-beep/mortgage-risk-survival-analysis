@@ -245,7 +245,7 @@ def _validate_result_schema(
 
 
 def validate_time_varying_cox_results(frame: FrameLike) -> pl.DataFrame:
-    """Validate the public twelve-row Step 5A coefficient table."""
+    """Validate the public eight-row Step 5A coefficient table."""
     data = _validate_result_schema(
         frame,
         TIME_VARYING_COX_RESULT_DTYPES,

@@ -25,6 +25,8 @@ from src.survival.time_varying_cox_model import (
 )
 from src.survival.time_varying_input import (
     STEP5A_PREDICTORS,
+    TIME_VARYING_COLUMNS,
+    TV_COX_TIME_VARYING_PREDICTORS,
     validate_time_varying_cox_input,
 )
 from tests.time_varying_fixtures import FITTER_SEED, build_fitter_fixture
@@ -57,6 +59,40 @@ class TestTimeVaryingCoxModel(unittest.TestCase):
             len(STEP5A_PREDICTORS),
         )
         validate_time_varying_cox_input(self.input)
+
+    def test_exact_revised_predictor_contract(self):
+        self.assertEqual(
+            STEP5A_PREDICTORS,
+            [
+                "fico",
+                "original_ltv",
+                "original_dti",
+                "original_interest_rate",
+                "original_loan_term",
+                "lag_current_actual_upb",
+                "lag_current_interest_rate",
+                "lag_dq_3plus",
+            ],
+        )
+        self.assertEqual(
+            TV_COX_TIME_VARYING_PREDICTORS,
+            [
+                "lag_current_actual_upb",
+                "lag_current_interest_rate",
+                "lag_dq_3plus",
+            ],
+        )
+
+    def test_diagnostic_delinquency_columns_cannot_enter_fit(self):
+        excluded = {"lag_dq_1m", "lag_dq_2m", "lag_dq_xx", "lag_dq_ra"}
+        self.assertTrue(excluded.issubset(TIME_VARYING_COLUMNS))
+        self.assertTrue(excluded.isdisjoint(STEP5A_PREDICTORS))
+        self.assertEqual(list(self.result.model.params_.index), STEP5A_PREDICTORS)
+
+    def test_all_revised_time_varying_predictors_vary_over_intervals(self):
+        for predictor in TV_COX_TIME_VARYING_PREDICTORS:
+            with self.subTest(predictor=predictor):
+                self.assertGreater(self.input[predictor].n_unique(), 1)
 
     def test_fit_returns_locked_model_and_result_schemas(self):
         self.assertIsInstance(self.result.model, CoxTimeVaryingFitter)

@@ -36,7 +36,7 @@ class TestResultManifest(unittest.TestCase):
             {
                 "kaplan_meier": "km_v1",
                 "cox_ph": "cox_ph_v1",
-                "time_varying_cox": "tv_cox_v1",
+                "time_varying_cox": "tv_cox_v2",
                 "cause_specific_default": "cause_specific_default_v1",
                 "cause_specific_prepayment": "cause_specific_prepayment_v1",
                 "aalen_johansen": "aalen_johansen_v1",
