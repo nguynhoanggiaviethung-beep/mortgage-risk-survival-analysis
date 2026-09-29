@@ -31,7 +31,8 @@ TIME_VARYING_COLUMNS = [
 TV_COX_TIME_VARYING_PREDICTORS = [
     "lag_current_actual_upb",
     "lag_current_interest_rate",
-    "lag_dq_3plus",
+    "lag_dq_1m",
+    "lag_dq_2m",
 ]
 
 STEP5A_PREDICTORS = [*CORE_COLUMNS, *TV_COX_TIME_VARYING_PREDICTORS]

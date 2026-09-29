@@ -103,6 +103,10 @@ validated methodology:
 - Missing core covariates are not imputed. All eligible loans remain in the
   master model dataset, with `core_covariates_complete_flag` identifying the
   complete-case sample.
+- The time-varying default Cox model uses prior-month UPB, interest rate, and
+  1-/2-month delinquency indicators. The 90+ DPD event-month value is excluded
+  to prevent target leakage; a 3+-month delinquency predictor has no variation
+  before the first-90+ event and is not fitted.
 
 See the audit reports in `reports/` and the implementation in `src/data/` for
 the complete definitions and preserved evidence columns.

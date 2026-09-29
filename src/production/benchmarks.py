@@ -300,6 +300,10 @@ def build_tv_cox_benchmark_preflight(data: pl.DataFrame) -> dict[str, object]:
             (~values.is_finite().fill_null(False)).sum().alias(
                 "null_or_nonfinite_count"
             ),
+            values.n_unique().alias("unique_value_count"),
+            values.std(ddof=1).alias("sample_standard_deviation"),
+            values.min().alias("minimum"),
+            values.max().alias("maximum"),
         ).row(0, named=True)
         predictor_support[predictor] = {
             "all_finite": counts["null_or_nonfinite_count"] == 0,
@@ -307,6 +311,10 @@ def build_tv_cox_benchmark_preflight(data: pl.DataFrame) -> dict[str, object]:
             "nonfinite_count": (
                 counts["null_or_nonfinite_count"] - counts["null_count"]
             ),
+            "unique_value_count": counts["unique_value_count"],
+            "sample_standard_deviation": counts["sample_standard_deviation"],
+            "minimum": counts["minimum"],
+            "maximum": counts["maximum"],
         }
 
     binary_support = {}
@@ -372,7 +380,13 @@ def build_tv_cox_benchmark_preflight(data: pl.DataFrame) -> dict[str, object]:
         np.ones(len(pandas_input)),
         np.zeros(len(STEP5A_PREDICTORS)),
     )
-    information_rank = int(np.linalg.matrix_rank(-initial_hessian))
+    hessian_finite = bool(np.isfinite(initial_hessian).all())
+    gradient_finite = bool(np.isfinite(initial_gradient).all())
+    information_rank = (
+        int(np.linalg.matrix_rank(-initial_hessian))
+        if hessian_finite
+        else None
+    )
 
     return {
         "status": "COMPLETED",
@@ -384,10 +398,8 @@ def build_tv_cox_benchmark_preflight(data: pl.DataFrame) -> dict[str, object]:
         ],
         "initial_information_matrix_rank": information_rank,
         "initial_information_matrix_dimension": len(STEP5A_PREDICTORS),
-        "initial_information_matrix_all_finite": bool(
-            np.isfinite(initial_hessian).all()
-        ),
-        "initial_gradient_all_finite": bool(np.isfinite(initial_gradient).all()),
+        "initial_information_matrix_all_finite": hessian_finite,
+        "initial_gradient_all_finite": gradient_finite,
         "rank_computation": "LIFELINES_INITIAL_NEWTON_RAPHSON_GRADIENT",
     }
 

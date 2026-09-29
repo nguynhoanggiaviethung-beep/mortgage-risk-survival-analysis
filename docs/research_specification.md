@@ -136,6 +136,15 @@ the study clock.
 
 Loan-month.
 
+### Time-Varying Cox Covariates
+
+The time-varying default model uses the prior observed month's actual UPB,
+interest rate, and mutually exclusive indicators for 1-month and 2-month
+delinquency. The outcome is first 90+ DPD. The 90+ status in the terminal
+event month is excluded from the predictors to prevent target leakage; as a
+result, a 3+-month delinquency indicator has no variation in eligible
+pre-event intervals and is not included in the model.
+
 ### Event Definition
 
 Ba trạng thái phân tích chính:
