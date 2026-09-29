@@ -19,6 +19,14 @@ from src.production.benchmarks import (
     run_tv_cox_benchmark,
 )
 
+
+def print_console_safe_path(path: Path, *, stream=None) -> None:
+    """Print a path without failing on a legacy Windows console encoding."""
+    target = sys.stdout if stream is None else stream
+    encoding = getattr(target, "encoding", None) or "utf-8"
+    safe_path = str(path).encode(encoding, errors="backslashreplace").decode(encoding)
+    print(safe_path, file=target)
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", choices=("fine-gray", "tv-cox"))
@@ -55,7 +63,7 @@ def main() -> None:
             requested_loans=args.loans,
             output_path=output,
         )
-    print(output)
+    print_console_safe_path(output)
 
 
 if __name__ == "__main__":
