@@ -12,7 +12,8 @@ class InputContract:
     relative_path: str
     role: str
     # Hash and byte size are measured at runtime: generated Parquet files are
-    # local artifacts and are not distributed with this repository.
+    # local artifacts and are not distributed with this repository. Row counts
+    # and event reconciliations are locked for this explicit DATA_VERSION.
     sha256: str | None
     byte_size: int | None
     row_count: int | None
@@ -25,23 +26,33 @@ INPUT_CONTRACTS: dict[str, InputContract] = {
         role="canonical analytical loan-level population",
         sha256=None,
         byte_size=None,
-        row_count=None,
-        reconciliation={},
+        row_count=504405,
+        reconciliation={
+            "DEFAULT": 16556,
+            "PREPAYMENT": 206175,
+            "CENSOR": 281674,
+            "delayed_entry": 34347,
+        },
     ),
     "complete_cases": InputContract(
         relative_path="data/model/baseline_complete_cases_2016_2026.parquet",
         role="canonical complete-case static-model population",
         sha256=None,
         byte_size=None,
-        row_count=None,
-        reconciliation={},
+        row_count=499393,
+        reconciliation={
+            "DEFAULT": 16107,
+            "PREPAYMENT": 203469,
+            "CENSOR": 279817,
+            "delayed_entry": 33757,
+        },
     ),
     "performance": InputContract(
         relative_path="data/processed/performance.parquet",
         role="canonical monthly performance source for time-varying Cox",
         sha256=None,
         byte_size=None,
-        row_count=None,
+        row_count=20097384,
         reconciliation={},
     ),
 }
