@@ -176,8 +176,9 @@ def render() -> None:
     pd_raw["horizon"] = pd_raw["horizon"].astype(int)
     pd_raw["group_value"] = pd_raw["group_value"].apply(_format_group_value)
 
-    baseline_df = pd_raw[pd_raw["group"] == "portfolio"]
-    data = pd_raw[pd_raw["group"] != "portfolio"]
+    baseline_df = pd_raw[pd_raw["group"] == "portfolio"].copy()
+    data = pd_raw[pd_raw["group"] != "portfolio"].copy()
+
     if "vintage" in data.columns and (data["vintage"].astype(str) == "All").any():
         data = data[data["vintage"].astype(str) == "All"]
 
@@ -189,11 +190,7 @@ def render() -> None:
         if not baseline_df.empty:
             baseline_df = baseline_df.sort_values("horizon")
             if "follow_up_flag" in baseline_df.columns:
-                eligible = baseline_df[
-                    _to_bool_series(
-                        baseline_df["follow_up_flag"]
-                    )
-                ].copy()
+                eligible = baseline_df[_to_bool_series(baseline_df["follow_up_flag"])].copy()
             else:
                 eligible = baseline_df.copy()
             if not eligible.empty:
@@ -209,7 +206,7 @@ def render() -> None:
     dim_map = {}
     for g in data["group"].unique():
         dim_map.setdefault(_dim_label(g), g)
-    dim_labels = sorted(dim_map, key=lambda x: DIM_ORDER.index(x) if x in DIM_ORDER else 99)
+    dim_labels = sorted(dim_map.keys(), key=lambda x: DIM_ORDER.index(x) if x in DIM_ORDER else 99)
     horizons = sorted(data["horizon"].unique())
 
     section_title("Bộ lọc so sánh")
@@ -223,17 +220,17 @@ def render() -> None:
         metric_options = [k for k, v in METRICS.items() if v in data.columns]
         metric_label = st.radio("Chỉ số phân tích", metric_options, horizontal=True)
     metric = METRICS[metric_label]
-    is_default = metric == "cif_default"
+    is_default = (metric == "cif_default")
 
     group_key = dim_map[dim_label]
-    dim_all = data[data["group"] == group_key]
+    dim_all = data[data["group"] == group_key].copy()
     agg = {c: "mean" for c in ["cif_default", "cif_prepayment"] if c in dim_all.columns}
     if "number_at_risk" in dim_all.columns:
         agg["number_at_risk"] = "max"
     if "follow_up_flag" in dim_all.columns:
         agg["follow_up_flag"] = "min"
 
-    sub = dim_all[dim_all["horizon"] == horizon]
+    sub = dim_all[dim_all["horizon"] == horizon].copy()
     if sub.empty:
         st.info(f"Chưa có bản ghi cho '{dim_label}' tại mốc {horizon} tháng.")
         _render_vintage_section(None)
@@ -247,16 +244,15 @@ def render() -> None:
                 f"{horizon} tháng; các nhóm đó không được dùng để xếp hạng "
                 "và không ngoại suy CIF."
             )
+        sub = sub[_to_bool_series(sub["follow_up_flag"])].copy()
 
-        sub = sub[
-            _to_bool_series(sub["follow_up_flag"])
-        ].copy()
     if sub.empty or sub[metric].dropna().empty:
         st.info(f"Không nhóm nào có đủ dữ liệu quan sát để ước lượng tại mốc {horizon} tháng.")
         _render_vintage_section(None)
         return
+
     sub = sub.sort_values("group_value", key=lambda s: s.map(_band_key)).reset_index(drop=True)
-    if "number_at_risk" in sub and (sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING).any():
+    if "number_at_risk" in sub.columns and (sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING).any():
         st.warning(
             f"Nhóm có dưới {MIN_AT_RISK_FOR_RANKING} khoản vay có rủi ro vẫn được hiển thị, "
             "nhưng không dùng để xếp hạng vì ước lượng ở nhóm nhỏ dễ biến động."
@@ -270,29 +266,40 @@ def render() -> None:
 
     # ---- KPI tóm tắt ---------------------------------------------------------------
     section_title(f"Tóm tắt chỉ số · {dim_label} · {horizon} tháng")
-    ranked = sub[~sub["group_value"].isin({"Chưa có dữ liệu"})]
-    if "number_at_risk" in ranked:
+    ranked = sub[~sub["group_value"].isin({"Chưa có dữ liệu"})].copy()
+    if "number_at_risk" in ranked.columns:
         adequately_supported = ranked[ranked["number_at_risk"] >= MIN_AT_RISK_FOR_RANKING]
         if not adequately_supported.empty:
             ranked = adequately_supported
     ranked = ranked[ranked[metric].notna()]
     if ranked.empty:
-        ranked = sub[sub[metric].notna()]
+        ranked = sub[sub[metric].notna()].copy()
+
     hi = ranked.loc[ranked[metric].idxmax()]
     lo = ranked.loc[ranked[metric].idxmin()]
-    spread = (hi[metric] / lo[metric]) if lo[metric] and lo[metric] > 0 else None
+    spread = (hi[metric] / lo[metric]) if (pd.notna(lo[metric]) and lo[metric] > 0) else None
+
     kpi_row([
         {
             "label": f"Toàn danh mục · {horizon} tháng",
             "value": _pct(base_val),
             "help_text": "Default CIF của toàn bộ mẫu tại horizon đang chọn"
         },
-        {"label": f"Nhóm cao nhất: {hi['group_value']}", "value": _pct(hi[metric]),
-         "help_text": f"{hi['ratio']:.2f}× trung bình danh mục" if pd.notna(hi["ratio"]) else None},
-        {"label": f"Nhóm thấp nhất: {lo['group_value']}", "value": _pct(lo[metric]),
-         "help_text": f"{lo['ratio']:.2f}× trung bình danh mục" if pd.notna(lo["ratio"]) else None},
-        {"label": "Chênh lệch Cao / Thấp", "value": f"{spread:.1f}×" if spread else "—",
-         "help_text": "Tỷ lệ chênh lệch giữa nhóm rủi ro cao nhất và thấp nhất"},
+        {
+            "label": f"Nhóm cao nhất: {hi['group_value']}",
+            "value": _pct(hi[metric]),
+            "help_text": f"{hi['ratio']:.2f}× trung bình danh mục" if pd.notna(hi["ratio"]) else None
+        },
+        {
+            "label": f"Nhóm thấp nhất: {lo['group_value']}",
+            "value": _pct(lo[metric]),
+            "help_text": f"{lo['ratio']:.2f}× trung bình danh mục" if pd.notna(lo["ratio"]) else None
+        },
+        {
+            "label": "Chênh lệch Cao / Thấp",
+            "value": f"{spread:.1f}×" if spread else "—",
+            "help_text": "Tỷ lệ chênh lệch giữa nhóm rủi ro cao nhất và thấp nhất"
+        },
     ])
 
     # ---- Biểu đồ cột phân loại màu tương phản ------------------------------------------
@@ -302,18 +309,18 @@ def render() -> None:
         for r in sub["ratio"]:
             if pd.isna(r):
                 colors.append(COLOR_RISK_MID)
-            elif r >= 1.25:  # Vượt 25% so với TB danh mục -> Cảnh báo Đỏ (Rủi ro cao)
+            elif r >= 1.25:   # Vượt 25% so với TB danh mục -> Cảnh báo Đỏ (Rủi ro cao)
                 colors.append(COLOR_RISK_HIGH)
-            elif r <= 0.80:  # Thấp hơn 20% so với TB danh mục -> Xanh (An toàn)
+            elif r <= 0.80:   # Thấp hơn 20% so với TB danh mục -> Xanh (An toàn)
                 colors.append(COLOR_RISK_LOW)
-            else:            # Quanh mức trung bình -> Cam
+            else:             # Quanh mức trung bình -> Cam
                 colors.append(COLOR_RISK_MID)
         st.markdown(
             f"""
             <div style="margin-bottom:12px; font-weight:bold; font-size:13px; color:{COLOR_TEXT_DARK};">
-                <span style="color:{COLOR_RISK_HIGH}; font-size:16px;">■</span> Rủi ro cao (≥50% so với TB) &nbsp;&nbsp;&nbsp;
+                <span style="color:{COLOR_RISK_HIGH}; font-size:16px;">■</span> Rủi ro cao (≥125% so với TB) &nbsp;&nbsp;&nbsp;
                 <span style="color:{COLOR_RISK_MID}; font-size:16px;">■</span> Rủi ro trung bình &nbsp;&nbsp;&nbsp;
-                <span style="color:{COLOR_RISK_LOW}; font-size:16px;">■</span> Rủi ro thấp (≤30% so với TB)
+                <span style="color:{COLOR_RISK_LOW}; font-size:16px;">■</span> Rủi ro thấp (≤80% so với TB)
             </div>
             """,
             unsafe_allow_html=True,
@@ -336,10 +343,12 @@ def render() -> None:
         hovertemplate="%{x}<br>" + metric_label + ": %{y:.2%}<extra></extra>",
     ))
     if base_val:
-        fig.add_hline(y=base_val, line_dash="dash", line_color="#334155", line_width=2,
-                      annotation_text=f"TB danh mục: {_pct(base_val)}",
-                      annotation_position="top left",
-                      annotation_font=dict(size=12, color=COLOR_TEXT_DARK))
+        fig.add_hline(
+            y=base_val, line_dash="dash", line_color="#334155", line_width=2,
+            annotation_text=f"TB danh mục: {_pct(base_val)}",
+            annotation_position="top left",
+            annotation_font=dict(size=12, color=COLOR_TEXT_DARK)
+        )
     fig.update_yaxes(title=dict(text=metric_label, font=dict(color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", rangemode="tozero")
     fig.update_xaxes(title=dict(text=dim_label, font=dict(color=COLOR_TEXT_DARK, size=13)))
     _chart_card_open()
@@ -347,7 +356,6 @@ def render() -> None:
     _chart_card_close()
 
     # ---- Heatmap rủi ro tương phản đồng bộ --------------------------------------------
-
     section_title(
         f"Rủi ro theo nhóm qua các mốc thời gian — {dim_label}",
         "Mỗi ô cho biết mức rủi ro tích lũy của một nhóm tại một mốc theo dõi. "
@@ -355,119 +363,60 @@ def render() -> None:
     )
 
     heat_data = dim_all.copy()
-
-    # Chỉ giữ các horizon đủ điều kiện follow-up
     if "follow_up_flag" in heat_data.columns:
-        heat_data = heat_data[
-            _to_bool_series(
-                heat_data["follow_up_flag"]
-            )
-        ].copy()
+        heat_data = heat_data[_to_bool_series(heat_data["follow_up_flag"])].copy()
 
     if heat_data.empty:
-        st.info(
-            "Chưa có horizon nào đủ điều kiện follow-up để tạo heatmap."
-        )
+        st.info("Chưa có horizon nào đủ điều kiện follow-up để tạo heatmap.")
     else:
         pivot = (
             heat_data
-            .groupby(
-                ["group_value", "horizon"],
-                as_index=False
-            )[metric]
+            .groupby(["group_value", "horizon"], as_index=False)[metric]
             .mean()
-            .pivot(
-                index="group_value",
-                columns="horizon",
-                values=metric
-            )
+            .pivot(index="group_value", columns="horizon", values=metric)
         )
 
         if pivot.empty:
-            st.info(
-                "Chưa đủ dữ liệu để tạo heatmap."
-            )
+            st.info("Chưa đủ dữ liệu để tạo heatmap.")
         else:
-            pivot = pivot.loc[
-                sorted(
-                    pivot.index,
-                    key=_band_key
-                )
-            ]
+            pivot = pivot.loc[sorted(pivot.index, key=_band_key)]
 
-            if is_default:
-                heat_colorscale = [
-                    [0.0, "#2E7D32"],
-                    [0.3, "#1565C0"],
-                    [0.6, "#FDE047"],
-                    [0.8, "#EF6C00"],
-                    [1.0, COLOR_RISK_HIGH],
-                ]
-            else:
-                heat_colorscale = "Blues"
+            heat_colorscale = [
+                [0.0, "#2E7D32"],
+                [0.3, "#1565C0"],
+                [0.6, "#FDE047"],
+                [0.8, "#EF6C00"],
+                [1.0, COLOR_RISK_HIGH],
+            ] if is_default else "Blues"
 
             heat = go.Figure(
                 go.Heatmap(
                     z=pivot.values,
-                    x=[
-                        f"{int(h)} tháng"
-                        for h in pivot.columns
-                    ],
+                    x=[f"{int(h)} tháng" for h in pivot.columns],
                     y=list(pivot.index),
-                    text=[
-                        [
-                            _pct(v)
-                            for v in row
-                        ]
-                        for row in pivot.values
-                    ],
+                    text=[[_pct(v) for v in row] for row in pivot.values],
                     texttemplate="%{text}",
-                    textfont=dict(
-                        size=12,
-                        color=COLOR_TEXT_DARK
-                    ),
+                    textfont=dict(size=12, color=COLOR_TEXT_DARK),
                     colorscale=heat_colorscale,
                     colorbar=dict(
-                        title=dict(
-                            text=metric_label,
-                            font=dict(
-                                color=COLOR_TEXT_DARK,
-                                size=12
-                            )
-                        ),
+                        title=dict(text=metric_label, font=dict(color=COLOR_TEXT_DARK, size=12)),
                         tickformat=".0%",
                     ),
-                    hovertemplate=(
-                        "%{y} · %{x}<br>"
-                        + metric_label
-                        + ": %{z:.2%}"
-                        + "<extra></extra>"
-                    ),
+                    hovertemplate="%{y} · %{x}<br>" + metric_label + ": %{z:.2%}<extra></extra>",
                 )
             )
-
-            heat.update_yaxes(
-                autorange="reversed"
-            )
+            heat.update_yaxes(autorange="reversed")
 
             _chart_card_open()
-
             st.plotly_chart(
-                _layout(
-                    heat,
-                    height=max(
-                        260,
-                        60 * len(pivot) + 80
-                    )
-                ),
+                _layout(heat, height=max(260, 60 * len(pivot) + 80)),
                 use_container_width=True
             )
-
             _chart_card_close()
 
     # ---- Chiều nào phân biệt rủi ro mạnh nhất -------------------------------------------
     section_title(
-        f"6. Đặc điểm nào có chênh lệch rủi ro quan sát được lớn hơn? ({horizon} tháng)",
+        f"Đặc điểm nào có chênh lệch rủi ro quan sát được lớn hơn? ({horizon} tháng)",
         "So sánh khoảng cách giữa nhóm cao nhất và thấp nhất của từng đặc điểm. "
         "Thanh dài hơn cho biết chênh lệch quan sát được giữa các nhóm lớn hơn; "
         "đây không phải là tác động nhân quả."
@@ -475,19 +424,27 @@ def render() -> None:
     rows = []
     for label, gkey in dim_map.items():
         d = data[(data["group"] == gkey) & (data["horizon"] == horizon)].copy()
+        if d.empty:
+            continue
         d["group_value"] = d["group_value"].apply(_format_group_value)
         d = d[~d["group_value"].isin({"Chưa có dữ liệu"})]
-        if "number_at_risk" in d:
+        if "number_at_risk" in d.columns:
             d = d[d["number_at_risk"] >= MIN_AT_RISK_FOR_RANKING]
-        d = d.groupby("group_value")[metric].mean()
-        if len(d) >= 2 and d.min() > 0:
-            rows.append((label, d.max() / d.min(), d.idxmax(), d.idxmin()))
+        d_grouped = d.groupby("group_value")[metric].mean()
+        if len(d_grouped) >= 2 and d_grouped.min() > 0:
+            ratio_val = d_grouped.max() / d_grouped.min()
+            if pd.notna(ratio_val):
+                rows.append((label, ratio_val, d_grouped.idxmax(), d_grouped.idxmin()))
+
     if rows:
         rows.sort(key=lambda r: r[1], reverse=True)
         sp = go.Figure(go.Bar(
-            x=[r[1] for r in rows], y=[r[0] for r in rows], orientation="h",
+            x=[r[1] for r in rows],
+            y=[r[0] for r in rows],
+            orientation="h",
             marker_color=[COLOR_RISK_HIGH if r[0] == dim_label else "#2E7D32" for r in rows],
-            text=[f"{r[1]:.1f}×  ({r[2]} vs {r[3]})" for r in rows], textposition="outside",
+            text=[f"{r[1]:.1f}×  ({r[2]} vs {r[3]})" for r in rows],
+            textposition="outside",
             textfont=dict(color=COLOR_TEXT_DARK, size=12),
             hovertemplate="%{y}: %{x:.2f}×<extra></extra>",
         ))
@@ -501,7 +458,8 @@ def render() -> None:
     # ---- Bảng chi tiết + nhận xét ---------------------------------------------------------
     section_title("Bảng chi tiết thông số")
     table = pd.DataFrame({dim_label: sub["group_value"]})
-    table["Default CIF (%)"] = sub["cif_default"] * 100 if "cif_default" in sub.columns else None
+    if "cif_default" in sub.columns:
+        table["Default CIF (%)"] = sub["cif_default"] * 100
     if "cif_prepayment" in sub.columns:
         table["Prepayment CIF (%)"] = sub["cif_prepayment"] * 100
     if base_val:
@@ -510,21 +468,27 @@ def render() -> None:
         table["Số khoản vay at-risk"] = sub["number_at_risk"]
     if "follow_up_flag" in sub.columns:
         table["Trạng thái theo dõi"] = sub["follow_up_flag"].astype(str).str.lower().map(
-            lambda s: "Chưa đủ" if s in ("false", "0", "no") else "Đủ")
-    if "number_at_risk" in sub.columns:
-        table.loc[sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING, "Trạng thái theo dõi"] = "Mẫu at-risk nhỏ"
+            lambda s: "Chưa đủ" if s in ("false", "0", "no") else "Đủ"
+        )
+        if "number_at_risk" in sub.columns:
+            table.loc[sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING, "Trạng thái theo dõi"] = "Mẫu at-risk nhỏ"
+
     if sub["group_value"].isin({"Chưa có dữ liệu"}).any():
         st.markdown(f"<p style='color:{COLOR_TEXT_DARK}; font-weight:bold; font-size:13px;'>* Nhóm thiếu dữ liệu vẫn được hiển thị riêng; không đưa nhóm này vào xếp hạng rủi ro.</p>", unsafe_allow_html=True)
 
-    col_cfg = {
-        "Default CIF (%)": st.column_config.ProgressColumn(
-            "Default CIF (%)", format="%.2f%%", min_value=0,
-            max_value=float(max(table["Default CIF (%)"].max(), 0.01))),
-        "Prepayment CIF (%)": st.column_config.NumberColumn("Prepayment CIF (%)", format="%.2f%%"),
-        "So với trung bình (lần)": st.column_config.NumberColumn("So với trung bình (lần)", format="%.2f×"),
-        "Số khoản vay at-risk": st.column_config.NumberColumn("Số khoản vay at-risk (N)", format="%d"),
-    }
-    col_cfg = {k: v for k, v in col_cfg.items() if k in table.columns}
+    col_cfg = {}
+    if "Default CIF (%)" in table.columns:
+        max_cif = float(max(table["Default CIF (%)"].max(), 0.01))
+        col_cfg["Default CIF (%)"] = st.column_config.ProgressColumn(
+            "Default CIF (%)", format="%.2f%%", min_value=0, max_value=max_cif
+        )
+    if "Prepayment CIF (%)" in table.columns:
+        col_cfg["Prepayment CIF (%)"] = st.column_config.NumberColumn("Prepayment CIF (%)", format="%.2f%%")
+    if "So với trung bình (lần)" in table.columns:
+        col_cfg["So với trung bình (lần)"] = st.column_config.NumberColumn("So với trung bình (lần)", format="%.2f×")
+    if "Số khoản vay at-risk" in table.columns:
+        col_cfg["Số khoản vay at-risk"] = st.column_config.NumberColumn("Số khoản vay at-risk (N)", format="%d")
+
     st.dataframe(table, hide_index=True, column_config=col_cfg, use_container_width=True)
 
     insights = [
@@ -586,57 +550,50 @@ def render() -> None:
 def _render_vintage_section(selected_horizon) -> None:
     v = ds.get_vintage_results()
     if v.empty:
-        st.info(
-            "Chưa có dữ liệu Origination Vintage để hiển thị."
-        )
+        st.info("Chưa có dữ liệu Origination Vintage để hiển thị.")
         return
 
-    required_vintage = {
-        "vintage",
-        "horizon",
-        "default_cif",
-    }
-
+    required_vintage = {"vintage", "horizon", "default_cif"}
     if not required_vintage.issubset(v.columns):
         missing = required_vintage - set(v.columns)
-
-        st.warning(
-            "Dữ liệu Vintage đang thiếu cột: "
-            + ", ".join(sorted(missing))
-        )
+        st.warning("Dữ liệu Vintage đang thiếu cột: " + ", ".join(sorted(missing)))
         return
-    section_title("Xu hướng theo Năm giải ngân (Origination Vintage)",
-                  "Default CIF của từng năm giải ngân tại các mốc thời gian — so sánh giữa các thế hệ khoản vay.")
+
+    section_title(
+        "Xu hướng theo Năm giải ngân (Origination Vintage)",
+        "Default CIF của từng năm giải ngân tại các mốc thời gian — so sánh giữa các thế hệ khoản vay."
+    )
     v = v.copy()
     v["horizon"] = v["horizon"].astype(int)
-    chart_data = v
+    chart_data = v.copy()
     if "follow_up_eligible" in chart_data.columns:
-        chart_data = chart_data[
-            _to_bool_series(
-                chart_data["follow_up_eligible"]
-            )
-        ].copy()
+        chart_data = chart_data[_to_bool_series(chart_data["follow_up_eligible"])].copy()
+
     if chart_data.empty:
         st.info("Chưa có năm giải ngân (Vintage) nào đủ điều kiện theo dõi tại các mốc thời gian được báo cáo.")
         return
-    fig = go.Figure()
 
-    # Bảng màu tương phản đồng bộ mốc thời gian Vintage
+    fig = go.Figure()
     vintage_palette = [COLOR_RISK_HIGH, COLOR_RISK_MID, COLOR_RISK_LOW, COLOR_PREPAYMENT]
 
     for i, h in enumerate(sorted(chart_data["horizon"].unique())):
         d = chart_data[chart_data["horizon"] == h].sort_values("vintage")
         fig.add_trace(go.Scatter(
-            x=d["vintage"].astype(str), y=d["default_cif"], mode="lines+markers", name=f"{h} tháng",
+            x=d["vintage"].astype(str),
+            y=d["default_cif"],
+            mode="lines+markers",
+            name=f"{h} tháng",
             line=dict(color=vintage_palette[i % len(vintage_palette)], width=3 if h == selected_horizon else 2),
             marker=dict(size=8),
-            opacity=1 if h == selected_horizon or selected_horizon is None else 0.6,
+            opacity=1.0 if (h == selected_horizon or selected_horizon is None) else 0.6,
         ))
+
     fig.update_yaxes(title=dict(text="Default CIF", font=dict(color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", rangemode="tozero")
     fig.update_xaxes(title=dict(text="Năm giải ngân (Vintage)", font=dict(color=COLOR_TEXT_DARK, size=13)))
     _chart_card_open()
     st.plotly_chart(_layout(fig), use_container_width=True)
     _chart_card_close()
+
     with st.expander("Bảng dữ liệu Vintage chi tiết (bao gồm trạng thái theo dõi)"):
         v_renamed = v.rename(columns={
             "vintage": "Năm Vintage",
@@ -649,5 +606,8 @@ def _render_vintage_section(selected_horizon) -> None:
             "prepayment_count": "Số ca trả trước",
             "follow_up_eligible": "Đủ điều kiện theo dõi"
         })
-        st.dataframe(v_renamed.sort_values(["Năm Vintage", "Mốc thời gian (Tháng)"]).reset_index(drop=True),
-                     hide_index=True, use_container_width=True)
+        st.dataframe(
+            v_renamed.sort_values(["Năm Vintage", "Mốc thời gian (Tháng)"]).reset_index(drop=True),
+            hide_index=True,
+            use_container_width=True
+        )
