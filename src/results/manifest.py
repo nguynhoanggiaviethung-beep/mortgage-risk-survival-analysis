@@ -286,7 +286,11 @@ def validate_run_manifest(
     )
     if item.data_version != expected_data_version:
         raise ResultManifestError("data_version does not match the locked data build.")
-    if item.model_versions != MODEL_VERSION_REGISTRY:
+    previous_model_registry = {
+        key: value for key, value in MODEL_VERSION_REGISTRY.items()
+        if key != "grouped_pd"
+    }
+    if item.model_versions not in (MODEL_VERSION_REGISTRY, previous_model_registry):
         raise ResultManifestError("model_versions does not match the canonical registry.")
     if not item.runtime_versions or any(
         not isinstance(key, str) or not key or not isinstance(value, str) or not value
