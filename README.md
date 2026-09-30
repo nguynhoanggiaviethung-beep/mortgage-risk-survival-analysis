@@ -85,8 +85,7 @@ Repository cleanup and future organization changes must not silently alter the
 validated methodology:
 
 - Event codes are `0=CENSOR`, `1=DEFAULT`, and `2=PREPAYMENT`.
-- Default primarily begins at the first month with 90+ DPD; documented RA and
-  Zero Balance fallbacks remain part of the event logic.
+- Default is identified using 90+ DPD, RA, and Zero Balance Codes 02/03/09. For each loan, the earliest event is selected; when Default and Prepayment occur in the same month, Default takes precedence.
 - Same-month default and prepayment is classified as default while retaining
   the conflict flag.
 - The survival origin follows the project outline: Origination Month. The
