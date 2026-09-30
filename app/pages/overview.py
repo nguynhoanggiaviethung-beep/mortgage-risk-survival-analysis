@@ -24,27 +24,28 @@ import streamlit as st
 
 from app.pages.portfolio_risk import _render_intro
 from app.services import data_service as ds
+from app.config import FONT_STACK
 
 
 # --------------------------------------------------------------------------
 # BẢNG MÀU (chỉnh ở đây là đổi toàn trang)
 # --------------------------------------------------------------------------
-C_NAVY = "#1F4E79"      # tiêu đề chung / tóm tắt
-C_TOTAL = "#2E7D32"     # tổng số khoản vay
-C_DEFAULT = "#C62828"   # vỡ nợ
-C_PREPAY = "#1565C0"    # trả trước hạn
-C_OK = "#2E7D32"         # survival / trạng thái chưa xảy ra default
-C_WARN = "#EF6C00"      # rủi ro trung bình
+C_NAVY = "#293A32"      # xanh rừng cho tiêu đề / danh mục
+C_TOTAL = "#526F5B"     # xanh rêu
+C_DEFAULT = "#AD6254"   # đất nung dịu cho default
+C_PREPAY = "#637E69"    # xanh sage cho ZBC 01
+C_OK = "#64816A"        # trạng thái sống sót
+C_WARN = "#B08C45"      # vàng đồng
 
-T_NAVY = "#EAF1F8"
-T_TOTAL = "#ECEFF1"
-T_DEFAULT = "#FDECEA"
-T_PREPAY = "#E3F0FD"
-T_OK = "#E8F5E9"
-T_WARN = "#FFF3E0"
+T_NAVY = "#E9E8DE"
+T_TOTAL = "#F0EEE6"
+T_DEFAULT = "#F5E9E4"
+T_PREPAY = "#EAF0E7"
+T_OK = "#EAF0E7"
+T_WARN = "#F4EFDF"
 
-DOT_OK = "#A5D6A7"      # chấm khoản vay bình thường
-LINE_GRID = "#E6EBF0"
+DOT_OK = "#9AAA8F"
+LINE_GRID = "#E2DED2"
 
 HORIZON_LABEL = {12: "1 năm", 24: "2 năm", 36: "3 năm", 48: "4 năm", 60: "5 năm"}
 
@@ -55,23 +56,31 @@ YEAR_MAX = 2026
 # CSS viết liền, không thụt dòng, không dòng trống -> markdown không hiểu nhầm là code
 _CSS = (
     "<style>"
-    ".po-sec{display:flex;align-items:center;gap:14px;margin:34px 0 14px 0;"
-    "padding:10px 16px;border-radius:10px;}"
+    ".po-sec{display:block;margin:34px 0 14px 0;padding:0 0 0 2px;background:transparent!important;}"
     ".po-num{flex:0 0 auto;width:34px;height:34px;border-radius:50%;color:#fff;"
     "font-weight:700;font-size:1.05rem;display:flex;align-items:center;justify-content:center;}"
-    ".po-sec-t{font-size:1.3rem;font-weight:700;color:#14263A;line-height:1.3;}"
-    ".po-sec-s{font-size:0.95rem;color:#55606E;margin-top:2px;}"
-    ".po-summary{border-radius:12px;padding:18px 22px;font-size:1.15rem;line-height:1.75;"
-    "color:#14263A;}"
-    ".po-card{border-radius:12px;padding:16px 18px;height:100%;box-sizing:border-box;}"
-    ".po-title{font-size:0.95rem;font-weight:600;margin-bottom:4px;}"
-    ".po-big{font-size:2.1rem;font-weight:800;line-height:1.2;}"
-    ".po-plain{font-size:1rem;color:#14263A;margin-top:6px;line-height:1.5;}"
-    ".po-note{font-size:0.82rem;color:#5F6B78;margin-top:8px;line-height:1.45;}"
+    ".po-num{display:none;}"
+    ".po-sec:before{content:'✦  MORTGAGE RISK / OVERVIEW';display:block;color:#A78A47;"
+    "font:700 .68rem 'Lora',Georgia,serif;letter-spacing:.12em;margin-bottom:7px;}"
+    ".po-sec-t{font-size:1.75rem;font-weight:700;color:#293A32;line-height:1.22;font-family:'Lora',Georgia,serif;}"
+    ".po-sec-s{font-size:1rem;color:#777D75;margin-top:5px;}"
+    ".po-summary{border-radius:4px;padding:18px 22px;font-size:1.15rem;line-height:1.75;"
+    "color:#303A34;box-shadow:4px 4px 0 rgba(89,82,60,.10);}"
+    ".po-card{border-radius:4px;padding:16px 18px;height:100%;box-sizing:border-box;"
+    "position:relative;min-height:192px;border:1px solid #DCD7C8;box-shadow:5px 5px 0 rgba(89,82,60,.15);background:#FFFEFA!important;}"
+    ".po-card-icon{position:absolute;right:16px;top:16px;display:grid;place-items:center;width:36px;height:36px;"
+    "background:#F6F3E9;color:#A78A47;font:600 1.05rem 'Lora',Georgia,serif;}"
+    ".po-title{max-width:calc(100% - 48px);color:#8B877C!important;font-size:.7rem;font-weight:700;"
+    "text-transform:uppercase;letter-spacing:.105em;margin-bottom:14px;}"
+    ".po-big{font-family:'Lora',Georgia,serif;font-size:2.2rem;font-weight:700;line-height:1.2;color:#293A32!important;}"
+    ".po-plain{font-size:.94rem;color:#777D75;margin-top:7px;line-height:1.5;}"
+    ".po-note{display:flex;align-items:center;gap:8px;font-size:.78rem;color:#777D75;margin-top:14px;"
+    "padding-top:10px;border-top:1px solid #EEEADF;line-height:1.4;}"
+    ".po-note:before{content:'';width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#A78A47;}"
     ".po-badge{display:inline-block;padding:3px 12px;border-radius:999px;color:#fff;"
     "font-weight:700;font-size:0.9rem;}"
-    ".po-result{border-radius:12px;padding:18px 22px;}"
-    ".po-headline{font-size:1.25rem;color:#14263A;line-height:1.7;}"
+    ".po-result{border-radius:4px;padding:18px 22px;box-shadow:4px 4px 0 rgba(89,82,60,.10);}"
+    ".po-headline{font-size:1.25rem;color:#303A34;line-height:1.7;}"
     ".po-dots{display:flex;flex-wrap:wrap;gap:3px;margin:12px 0 8px 0;}"
     ".po-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}"
     ".po-legend{font-size:0.92rem;color:#3B4652;}"
@@ -130,19 +139,31 @@ def _h_label(h) -> str:
 
 def _section(num: int, title: str, sub: str, color: str, tint: str) -> str:
     return (
-        f'<div class="po-sec" style="background:{tint};border-left:8px solid {color}">'
-        f'<div class="po-num" style="background:{color}">{num}</div>'
+        f'<div class="po-sec">'
+        f'<div class="po-num">{num}</div>'
         f'<div><div class="po-sec-t">{title}</div><div class="po-sec-s">{sub}</div></div></div>'
     )
 
 
 def _card(title: str, big: str, plain: str, note: str, color: str, tint: str) -> str:
-    note_html = f'<div class="po-note">{note}</div>' if note else ""
+    title_key = title.casefold()
+    icon = "↘" if "default" in title_key or "vỡ nợ" in title_key else (
+        "↗" if "prepay" in title_key or "trả trước" in title_key else (
+            "◷" if "sau " in title_key or "pd" in title_key else "▤"
+        )
+    )
+    source = note or (
+        "Freddie Mac · loan-level" if "tổng số khoản" in title_key else
+        "Ước lượng CIF tích lũy" if "sau " in title_key else
+        "Danh mục khoản vay thế chấp"
+    )
+    note_html = f'<div class="po-note">{source}</div>'
     return (
-        f'<div class="po-card" style="background:{tint};border:1px solid {color}55;'
-        f'border-top:6px solid {color}">'
-        f'<div class="po-title" style="color:{color}">{title}</div>'
-        f'<div class="po-big" style="color:{color}">{big}</div>'
+        f'<div class="po-card" style="background:#FFFEFA;border:1px solid #DCD7C8;'
+        f'--card-accent:{color};--card-tint:{tint}">'
+        f'<div class="po-card-icon" style="color:{color};background:{tint}">{icon}</div>'
+        f'<div class="po-title">{title}</div>'
+        f'<div class="po-big">{big}</div>'
         f'<div class="po-plain">{plain}</div>{note_html}</div>'
     )
 
@@ -193,6 +214,9 @@ def render_plain_overview(
     prepay_by_horizon: dict | None = None,
     km_months=None,
     km_survival=None,
+    km_ci_low=None,
+    km_ci_high=None,
+    km_at_risk=None,
     scope_label=None,
     km_note=None,
     extra_section=None,
@@ -219,20 +243,22 @@ def render_plain_overview(
     parts = [f"{who} <b>{_num(loan_count)}</b> khoản vay thế chấp."]
     if _ok(default_rate):
         parts.append(
-            f'Trong <b>100 khoản vay</b>, khoảng <b style="color:{C_DEFAULT}">'
-            f"{_per_txt(default_rate, 100)} khoản</b> khách hàng không trả được nợ (vỡ nợ)"
+            f'Trong <b>36 tháng đầu</b>, cứ 100 khoản vay có khoảng '
+            f'<b style="color:{C_DEFAULT}">{_per_txt(default_rate, 100)} khoản</b> '
+            f'xảy ra vỡ nợ tích lũy'
         )
         if _ok(prepay_rate):
             parts[-1] += (
-                f' và khoảng <b style="color:{C_PREPAY}">{_per_txt(prepay_rate, 100)} khoản</b> '
-                f"được khách hàng trả xong sớm trước hạn."
+                f'; đồng thời khoảng <b style="color:{C_PREPAY}">'
+                f'{_per_txt(prepay_rate, 100)} khoản</b> được tất toán trước hạn.'
             )
         else:
             parts[-1] += "."
     elif _ok(prepay_rate):
         parts.append(
-            f'Trong <b>100 khoản vay</b>, khoảng <b style="color:{C_PREPAY}">'
-            f"{_per_txt(prepay_rate, 100)} khoản</b> được khách hàng trả xong sớm trước hạn."
+            f'Trong <b>36 tháng đầu</b>, cứ 100 khoản vay có khoảng '
+            f'<b style="color:{C_PREPAY}">{_per_txt(prepay_rate, 100)} khoản</b> '
+            "ghi nhận Zero Balance Code 01."
         )
     st.markdown(
         f'<div class="po-summary" style="background:{T_NAVY};border:1px solid {C_NAVY}55">'
@@ -257,10 +283,10 @@ def render_plain_overview(
     with c2:
         st.markdown(
             _card(
-                "Tỷ lệ vỡ nợ",
+                "Default CIF · 36 tháng",
                 _pct(default_rate),
-                f"Cứ 100 khoản vay có khoảng <b>{_per_txt(default_rate, 100)}</b> khoản không trả được nợ",
-                "Vỡ nợ = khoản vay không trả được nợ",
+                f"Trong 100 khoản vay, khoảng <b>{_per_txt(default_rate, 100)}</b> khoản vỡ nợ trong 36 tháng",
+                "CIF tích lũy; trả trước hạn được tính là sự kiện cạnh tranh",
                 C_DEFAULT,
                 T_DEFAULT,
             ),
@@ -269,10 +295,10 @@ def render_plain_overview(
     with c3:
         st.markdown(
             _card(
-                "Tỷ lệ trả trước hạn",
+                "Voluntary Prepayment (ZBC 01) CIF · 36 tháng",
                 _pct(prepay_rate),
-                f"Cứ 100 khoản vay có khoảng <b>{_per_txt(prepay_rate, 100)}</b> khoản được trả xong sớm",
-                "Trả trước hạn = khoản vay được tất toán trước thời hạn",
+                f"Trong 100 khoản vay, khoảng <b>{_per_txt(prepay_rate, 100)}</b> ghi nhận mã 01 trong 36 tháng",
+                "Project event: Voluntary Prepayment (ZBC 01); source code gộp prepaid/matured",
                 C_PREPAY,
                 T_PREPAY,
             ),
@@ -320,13 +346,6 @@ def render_plain_overview(
                     f'<b style="color:{C_DEFAULT}">{_per_txt(p, 1000)} khoản</b> '
                     f'đã xảy ra vỡ nợ ({_pct(p)}).'
                     f'</div>'
-                    f'{_dots_html(p, 1000)}'
-                    f'<div class="po-legend">'
-                    f'<span class="po-dot" style="background:{C_DEFAULT}"></span>'
-                    f'Khoản vay đã xảy ra vỡ nợ'
-                    f'<span class="po-dot" style="background:{DOT_OK}"></span>'
-                    f'Khoản vay chưa xảy ra vỡ nợ'
-                    f'</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -362,50 +381,42 @@ def render_plain_overview(
         st.markdown(
             _section(
                 3,
-                "Vỡ nợ và trả trước hạn theo thời gian",
-                "So sánh tỷ lệ vỡ nợ tích lũy và trả trước hạn tích lũy tại các mốc thời gian.",
+                "Default và Voluntary Prepayment (ZBC 01) theo horizon",
+                "So sánh cumulative incidence tại các horizon được báo cáo.",
                 C_PREPAY,
                 T_PREPAY,
             ),
             unsafe_allow_html=True,
         )
         fig = go.Figure()
-        fig.add_bar(
-            x=[f"Sau {_h_label(h)}" for h in horizons],
-            y=[pd_h[h] for h in horizons],
-            name="Vỡ nợ (không trả được nợ)",
-            marker_color=C_DEFAULT,
-            text=[_pct(pd_h[h], 1) for h in horizons],
-            textposition="outside",
-            hovertemplate="%{x}: %{y:.2%} khoản vay vỡ nợ<extra></extra>",
+        fig.add_scatter(
+            x=horizons, y=[pd_h[h] for h in horizons],
+            name="Default CIF", mode="markers",
+            marker=dict(color=C_DEFAULT, size=10, symbol="circle"),
+            hovertemplate="Horizon %{x} tháng<br>Default CIF: %{y:.2%}<extra></extra>",
         )
-        ymax = max(pd_h.values())
         pp_keys = [h for h in horizons if h in pp_h]
         if pp_keys:
-            fig.add_bar(
-                x=[f"Sau {_h_label(h)}" for h in pp_keys],
-                y=[pp_h[h] for h in pp_keys],
-                name="Trả nợ trước hạn",
-                marker_color=C_PREPAY,
-                text=[_pct(pp_h[h], 1) for h in pp_keys],
-                textposition="outside",
-                hovertemplate="%{x}: %{y:.2%} khoản vay trả trước hạn<extra></extra>",
+            fig.add_scatter(
+                x=pp_keys, y=[pp_h[h] for h in pp_keys],
+                name="Voluntary Prepayment (ZBC 01) CIF", mode="markers",
+                marker=dict(color=C_PREPAY, size=10, symbol="diamond"),
+                hovertemplate="Horizon %{x} tháng<br>ZBC 01 CIF: %{y:.2%}<extra></extra>",
             )
-            ymax = max(ymax, max(pp_h[h] for h in pp_keys))
         fig.update_layout(
-            barmode="group",
             height=400,
             margin=dict(l=10, r=10, t=40, b=10),
             yaxis=dict(
                 tickformat=".0%",
-                title="Tỷ lệ trên tổng số khoản vay",
+                title="Cumulative incidence",
                 gridcolor=LINE_GRID,
-                range=[0, ymax * 1.25],
+                range=[0, 1],
             ),
+            xaxis=dict(title="Horizon (tháng)", tickmode="array", tickvals=horizons, ticktext=[_h_label(h) for h in horizons]),
             legend=dict(orientation="h", y=1.12, x=0),
             plot_bgcolor="white",
             paper_bgcolor="white",
-            font=dict(size=14),
+            font=dict(family=FONT_STACK, size=14, color=C_NAVY),
         )
         st.plotly_chart(fig, width="stretch")
 
@@ -421,8 +432,8 @@ def render_plain_overview(
         st.markdown(
             _section(
                 4,
-                "Xác suất chưa xảy ra vỡ nợ theo thời gian",
-                "Đường Kaplan–Meier thể hiện xác suất khoản vay chưa xảy ra sự kiện vỡ nợ khi tuổi khoản vay tăng.",
+                "Kaplan–Meier · sống sót khỏi default",
+                "Ước lượng Kaplan–Meier kiểm duyệt khoản vay đã trả trước hạn; đây không phải xác suất thực tế 1 − Default CIF khi có competing risks.",
                 C_OK,
                 T_OK,
             ),
@@ -433,29 +444,35 @@ def render_plain_overview(
         surv = [b for _, b in pairs]
         low = max(0.0, min(surv) - 0.02)
         fig2 = go.Figure()
+        if km_ci_low is not None and km_ci_high is not None and len(km_ci_low) == len(years):
+            fig2.add_scatter(
+                x=years + years[::-1],
+                y=list(km_ci_high) + list(km_ci_low)[::-1],
+                fill="toself", fillcolor="rgba(46,125,50,0.12)",
+                line=dict(width=0), showlegend=False, hoverinfo="skip",
+            )
         fig2.add_scatter(
             x=years,
             y=surv,
             mode="lines",
-            line=dict(color=C_OK, width=3),
-            fill="tozeroy",
-            fillcolor="rgba(46,125,50,0.12)",
-            hovertemplate="Sau %{x:.1f} năm: %{y:.1%} xác suất chưa xảy ra vỡ nợ<extra></extra>",
+            line=dict(color=C_OK, width=3, shape="hv"),
+            customdata=list(zip(km_ci_low or [None] * len(years), km_ci_high or [None] * len(years), km_at_risk or [None] * len(years))),
+            hovertemplate="Sau %{x:.1f} năm: %{y:.1%} KM survival<br>CI 95%: %{customdata[0]:.1%}–%{customdata[1]:.1%}<br>At-risk: %{customdata[2]:,}<extra></extra>",
         )
         fig2.update_layout(
             height=380,
             margin=dict(l=10, r=10, t=20, b=10),
-            xaxis=dict(title="Số năm kể từ khi giải ngân", gridcolor=LINE_GRID),
+            xaxis=dict(title="Số năm kể từ mốc origination vận hành", gridcolor=LINE_GRID),
             yaxis=dict(
-                title="Xác suất chưa xảy ra vỡ nợ",
+                title="Kaplan–Meier survival",
                 tickformat=".0%",
-                range=[low, 1.005],
+                range=[0, 1.005],
                 gridcolor=LINE_GRID,
             ),
             showlegend=False,
             plot_bgcolor="white",
             paper_bgcolor="white",
-            font=dict(size=14),
+            font=dict(family=FONT_STACK, size=14, color=C_NAVY),
         )
         st.plotly_chart(fig2, width="stretch")
     elif km_note:
@@ -472,7 +489,7 @@ def render_plain_overview(
         st.markdown(
            "- **PD:** xác suất một khoản vay xảy ra vỡ nợ trong một khoảng thời gian.\n"
             "- **Default CIF:** tỷ lệ vỡ nợ tích lũy đến một mốc thời gian, có xét đến các sự kiện cạnh tranh.\n"
-            "- **Prepayment CIF:** tỷ lệ trả trước hạn tích lũy đến một mốc thời gian.\n"
+            "- **Prepayment CIF:** xác suất tích lũy event ZBC 01 theo quy ước project; source Freddie Mac mô tả ZBC 01 là prepaid or matured, nên không tách riêng maturity.\n"
             "- **Kaplan–Meier:** ước tính xác suất chưa xảy ra vỡ nợ theo thời gian.\n"
             "- **Origination:** thời điểm bắt đầu khoản vay được đưa vào phân tích."
         )
@@ -497,7 +514,7 @@ def _pick_or_all(df: pd.DataFrame, **conds) -> pd.DataFrame:
     return out if not out.empty else df
 
 def _per_horizon(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
-    """Mỗi horizon 1 dòng (lấy trung bình nếu còn nhiều dòng).
+    """Return one published estimate per horizon, without averaging CIFs.
     Chịu được horizon dạng số (12) hoặc chữ ('12M')."""
     if df is None or df.empty or "horizon" not in df.columns or value_col not in df.columns:
         return pd.DataFrame()
@@ -509,7 +526,7 @@ def _per_horizon(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     }).dropna(subset=["horizon"])
     if tmp.empty:
         return pd.DataFrame()
-    return tmp.groupby("horizon", as_index=False)[value_col].mean().sort_values("horizon")
+    return tmp.drop_duplicates("horizon", keep="last").sort_values("horizon")
 
 
 def _horizon_dict(df: pd.DataFrame, value_col: str) -> dict:
@@ -612,6 +629,7 @@ def _vintage_text(v: str) -> str:
 
 def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> None:
     """Mục 5: so sánh tỷ lệ vỡ nợ giữa các năm giải ngân."""
+    pd_raw = pd_raw.copy().rename(columns={"horizon_months": "horizon", "default_cif": "cif_default"})
     vc = _vcol(pd_raw)
     if vc is None or not {"horizon", "cif_default"}.issubset(pd_raw.columns):
         return
@@ -619,6 +637,11 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
     if "group" in base.columns:
         g = base[base["group"].astype(str) == "portfolio"]
         base = g if not g.empty else base
+    if "follow_up_eligible" in base.columns:
+        eligible = base["follow_up_eligible"]
+        if not pd.api.types.is_bool_dtype(eligible):
+            eligible = eligible.astype(str).str.strip().str.lower().isin({"true", "1", "yes", "y"})
+        base = base[eligible]
     tmp = pd.DataFrame({
         "label": _vstr(base[vc]),
         "horizon": pd.to_numeric(base["horizon"].astype(str).str.extract(r"(\d+)")[0], errors="coerce"),
@@ -631,8 +654,8 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
     st.markdown(
         _section(
             5,
-            "Khác biệt về tỷ lệ vỡ nợ giữa các năm giải ngân",
-            "So sánh tỷ lệ vỡ nợ tích lũy tại cùng một mốc thời gian giữa các năm giải ngân.",
+            "Khác biệt về Default CIF giữa các vintage",
+            "So sánh các năm đủ seasoning tại cùng một horizon; thiếu cột nghĩa là chưa đủ theo dõi.",
             C_DEFAULT,
             T_DEFAULT,
         ),
@@ -647,7 +670,7 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
         format_func=lambda h: f"Sau {_h_label(h)}",
         key="vintage_compare_horizon",
     )
-    d = tmp[tmp["horizon"] == chosen].groupby("label", as_index=False)["cif"].mean()
+    d = tmp[tmp["horizon"] == chosen].drop_duplicates("label", keep="first")
     if d.empty:
         st.info("Chưa có dữ liệu ở mốc thời gian này.")
         return
@@ -655,7 +678,7 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
     d = d.sort_values("label")
     labels = [str(x) for x in d["label"]]
     colors = [
-        C_DEFAULT if (selected is None or lb == selected) else "#E9A3A3" for lb in labels
+        C_DEFAULT if (selected is None or lb == selected) else "#D9C2B8" for lb in labels
     ]
     fig = go.Figure()
     fig.add_bar(
@@ -664,14 +687,14 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
         marker_color=colors,
         text=[_pct(v, 1) for v in d["cif"]],
         textposition="outside",
-        hovertemplate="Giải ngân %{x}: %{y:.2%} khoản vay vỡ nợ<extra></extra>",
+        hovertemplate="Vintage %{x}<br>Default CIF: %{y:.2%}<extra></extra>",
     )
     fig.update_layout(
         height=380,
         margin=dict(l=10, r=10, t=30, b=10),
         xaxis=dict(title="Năm giải ngân", type="category"),
         yaxis=dict(
-            title="Tỷ lệ vỡ nợ",
+            title="Default CIF",
             tickformat=".0%",
             gridcolor=LINE_GRID,
             range=[0, float(d["cif"].max()) * 1.25],
@@ -679,7 +702,7 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
         showlegend=False,
         plot_bgcolor="white",
         paper_bgcolor="white",
-        font=dict(size=14),
+        font=dict(family=FONT_STACK, size=14, color=C_NAVY),
     )
     st.plotly_chart(fig, width="stretch")
     st.caption(
@@ -689,11 +712,12 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
 
 
 def render() -> None:
-    st.markdown("<p style='color:#1E3A8A; font-weight:bold; font-size:15px; margin-bottom:4px;'>TRANG 1 · TỔNG QUAN DANH MỤC THEO NHÓM KHOẢN VAY</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#526F5B; font-weight:bold; font-size:15px; margin-bottom:4px;'>TRANG 1 · TỔNG QUAN DANH MỤC THEO NHÓM KHOẢN VAY</p>", unsafe_allow_html=True)
 
     summary_raw = ds.get_portfolio_summary()
     pd_raw = ds.get_pd_results()
     surv_raw = ds.get_survival_results()
+    vintage_raw = ds.get_vintage_results()
 
     if summary_raw.empty and pd_raw.empty:
         st.warning(
@@ -704,7 +728,7 @@ def render() -> None:
         return
 
     # ---- Bộ lọc năm giải ngân ------------------------------------------------------
-    options, out_of_range = _available_vintages(pd_raw, summary_raw)
+    options, out_of_range = _available_vintages(vintage_raw, pd_raw, summary_raw)
     selected = None
     if options:
         if out_of_range:
@@ -730,52 +754,62 @@ def render() -> None:
         pd_res = _pick(pd_raw, group="portfolio", vintage="All")
         survival = _pick(surv_raw, group="portfolio")
     else:
-        summary = _pick(_only_vintage(summary_raw, selected), score_band="All", ltv_band="All", dti_band="All")
-        pd_res = _pick(_only_vintage(pd_raw, selected), group="portfolio")
-        if _vcol(surv_raw) is not None:
-            survival = _pick(_only_vintage(surv_raw, selected), group="portfolio")
-        else:
+        if not vintage_raw.empty and {"vintage", "horizon", "default_cif"}.issubset(vintage_raw.columns):
+            v = vintage_raw[vintage_raw["vintage"].astype(str).str.replace(r"\.0$", "", regex=True) == selected].copy()
+            count = pd.to_numeric(v.get("loan_count", pd.Series(dtype=float)), errors="coerce").dropna()
+            summary = pd.DataFrame({"loan_count": [int(count.iloc[0])]}) if not count.empty else pd.DataFrame()
+            pd_res = v.rename(columns={
+                "default_cif": "cif_default", "prepayment_cif": "cif_prepayment",
+                "n_at_risk": "number_at_risk", "follow_up_eligible": "follow_up_flag",
+            })
+            pd_res["group"] = "portfolio"
             survival = pd.DataFrame()
-            km_note = (
-                "Đường sống sót hiện chỉ có cho toàn danh mục. "
-                "Chọn \"Tất cả các năm\" để xem biểu đồ này."
-            )
+            km_note = "Kaplan–Meier curve chỉ có cho toàn danh mục; không ngoại suy theo vintage."
+        else:
+            summary = _pick(_only_vintage(summary_raw, selected), score_band="All", ltv_band="All", dti_band="All")
+            pd_res = _pick(_only_vintage(pd_raw, selected), group="portfolio")
+            if _vcol(surv_raw) is not None:
+                survival = _pick(_only_vintage(surv_raw, selected), group="portfolio")
+            else:
+                survival = pd.DataFrame()
+                km_note = "Đường sống sót hiện chỉ có cho toàn danh mục. Chọn \"Tất cả các năm\" để xem biểu đồ này."
         if summary.empty and pd_res.empty:
             st.info(f"Chưa có dữ liệu cho các khoản vay giải ngân {_vintage_text(selected).lower()}.")
             _render_vintage_compare(pd_raw, options, selected)
             return
 
-    # ---- Chỉ số tổng quan ------------------------------------------------------
-    total_loans = default_rate = prepay_rate = None
+    # ---- Quy mô danh mục -------------------------------------------------------
+    total_loans = None
     if not summary.empty and "loan_count" in summary.columns:
         loan_counts = pd.to_numeric(summary["loan_count"], errors="coerce")
         if loan_counts.notna().any():
             top = summary.loc[loan_counts.idxmax()]
             total_loans = int(loan_counts.max())
-            if "default_count" in summary.columns:
-                default_rate = _safe_rate(top["default_count"], total_loans)
-            if "prepayment_count" in summary.columns:
-                prepay_rate = _safe_rate(top["prepayment_count"], total_loans)
-
     # ---- PD / CIF theo horizon ---------------------------------------------------
     pd_by_horizon = _horizon_dict(_per_horizon(pd_res, "cif_default"), "cif_default")
     prepay_by_horizon = _horizon_dict(_per_horizon(pd_res, "cif_prepayment"), "cif_prepayment")
+    # Show comparable fixed-horizon cumulative incidences; raw event shares in
+    # portfolio_summary have unequal follow-up and must not be presented as PD.
+    default_rate = pd_by_horizon.get(36)
+    prepay_rate = prepay_by_horizon.get(36)
 
     # ---- Đường sống sót Kaplan–Meier --------------------------------------------
-    km_months = km_survival = None
+    km_months = km_survival = km_ci_low = km_ci_high = km_at_risk = None
     if not survival.empty and {"analysis_time", "survival"}.issubset(survival.columns):
         km_df = pd.DataFrame({
             "analysis_time": pd.to_numeric(survival["analysis_time"], errors="coerce"),
             "survival": pd.to_numeric(survival["survival"], errors="coerce"),
-        }).dropna()
+            "ci_low": pd.to_numeric(survival["ci_low"] if "ci_low" in survival else pd.Series(index=survival.index, dtype=float), errors="coerce"),
+            "ci_high": pd.to_numeric(survival["ci_high"] if "ci_high" in survival else pd.Series(index=survival.index, dtype=float), errors="coerce"),
+            "n_at_risk": pd.to_numeric(survival["n_at_risk"] if "n_at_risk" in survival else pd.Series(index=survival.index, dtype=float), errors="coerce"),
+        }).dropna(subset=["analysis_time", "survival"])
         if not km_df.empty:
-            km_df = (
-                km_df.groupby("analysis_time", as_index=False)["survival"]
-                .mean()
-                .sort_values("analysis_time")
-            )
+            km_df = km_df.drop_duplicates("analysis_time", keep="last").sort_values("analysis_time")
             km_months = km_df["analysis_time"].tolist()
             km_survival = km_df["survival"].tolist()
+            km_ci_low = km_df["ci_low"].tolist()
+            km_ci_high = km_df["ci_high"].tolist()
+            km_at_risk = km_df["n_at_risk"].tolist()
 
     render_plain_overview(
         loan_count=total_loans,
@@ -785,7 +819,10 @@ def render() -> None:
         prepay_by_horizon=prepay_by_horizon or None,
         km_months=km_months,
         km_survival=km_survival,
+        km_ci_low=km_ci_low,
+        km_ci_high=km_ci_high,
+        km_at_risk=km_at_risk,
         scope_label=selected,
         km_note=km_note,
-        extra_section=lambda: _render_vintage_compare(pd_raw, options, selected),
+        extra_section=lambda: _render_vintage_compare(vintage_raw, options, selected),
     )

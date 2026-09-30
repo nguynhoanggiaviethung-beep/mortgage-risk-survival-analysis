@@ -180,6 +180,31 @@ def get_survival_results(group: str | None = None) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def get_aj_curves(endpoint: str | None = None, group_name: str = "portfolio") -> pd.DataFrame:
+    """Return published Aalen–Johansen curves, including confidence limits."""
+    release = _current_release()
+    if release is None:
+        df = _legacy("survival_results")
+        if df.empty:
+            return df
+        model_col = "model" if "model" in df.columns else "model_type"
+        if model_col in df.columns:
+            df = df[df[model_col].astype(str).str.upper().str.contains("AALEN")]
+        endpoint_col = "endpoint" if "endpoint" in df.columns else None
+        group_col = "group_name" if "group_name" in df.columns else "group"
+    else:
+        df = _to_pandas(survival_results(release))
+        df = df[df["model"].astype(str).str.upper() == "AALEN_JOHANSEN"].copy()
+        endpoint_col = "endpoint"
+        group_col = "group_name"
+    if group_col in df.columns:
+        df = df[df[group_col].astype(str).str.casefold() == group_name.casefold()]
+    if endpoint and endpoint_col and endpoint_col in df.columns:
+        df = df[df[endpoint_col].astype(str).str.casefold() == endpoint.casefold()]
+    return df.sort_values([c for c in (endpoint_col, "analysis_time") if c in df.columns]) if not df.empty else df
+
+
+@st.cache_data(show_spinner=False)
 def get_risk_driver_results(model_type: str | None = None) -> pd.DataFrame:
     release = _current_release()
     if release is None:
@@ -303,7 +328,7 @@ def get_loan_timeline(loan_id: str | None = None) -> pd.DataFrame:
         )
         .select(
             "loan_id", "reporting_period_num", "performance_month", "analysis_time_month", "current_delinquency_status",
-            "current_actual_upb", "current_interest_rate", "zero_balance_code",
+            "delinquency_num", "is_ra", "current_actual_upb", "current_interest_rate", "zero_balance_code",
         )
         .sort("analysis_time_month")
         .collect()

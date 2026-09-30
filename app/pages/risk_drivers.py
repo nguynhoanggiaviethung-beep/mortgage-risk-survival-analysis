@@ -142,7 +142,7 @@ def _model_explanation(model_type: str, endpoint: str) -> str:
         return (
             f"**Fine–Gray · SHR.** SHR > 1 cho biết mỗi đơn vị tăng của biến liên quan "
             f"với subdistribution hazard cao hơn của {endpoint}; SHR < 1 cho biết mức thấp hơn. "
-            "Mô hình xét Voluntary Prepayment là rủi ro cạnh tranh. SHR không phải xác suất "
+            "Mô hình xét event ZBC 01 (Voluntary Prepayment theo quy ước project) là rủi ro cạnh tranh. SHR không phải xác suất "
             "Default riêng của một khoản vay."
         )
     if "cause-specific" in model_type.lower():

@@ -465,7 +465,10 @@ class TestEventDefinition(unittest.TestCase):
     def test_all_known_codes(self):
         expected = {
             "01": "PREPAYMENT",
-            "02": "CENSOR",
+            # Locked project definition treats ZBC 02 (third-party sale) as
+            # default evidence; the earlier expected CENSOR contradicted the
+            # research specification.
+            "02": "DEFAULT",
             "03": "DEFAULT",
             "09": "DEFAULT",
             "15": "CENSOR",
@@ -544,9 +547,9 @@ class TestEventDefinition(unittest.TestCase):
         self.assertEqual(loan["event_type"], "PREPAYMENT")
         self.assertEqual(loan["event_month"], 202001)
 
-    def test_conflicting_first_event_rejected(self):
+    def test_same_month_default_precedes_prepayment_and_is_flagged(self):
         # Hai dòng báo cáo khác tháng nhưng cùng tháng hiệu lực,
-        # một mã 01, một mã 03: phải báo lỗi.
+        # một mã 01, một mã 03: default thắng và được gắn cờ.
         perf = self.perf.with_columns(
             pl.when(
                 (pl.col("loan_id") == "L_ZB03")
@@ -564,8 +567,11 @@ class TestEventDefinition(unittest.TestCase):
             .otherwise(pl.col("zero_balance_effective_date"))
             .alias("zero_balance_effective_date"),
         )
-        with self.assertRaises(ValueError):
-            build_event_mapping(self.orig, perf).collect()
+        result = build_event_mapping(self.orig, perf).collect()
+        loan = result.filter(pl.col("loan_id") == "L_ZB03").to_dicts()[0]
+        self.assertEqual(loan["event_type"], "DEFAULT")
+        self.assertEqual(loan["event_month"], 202002)
+        self.assertTrue(loan["same_month_default_prepay_flag"])
 
 if __name__ == "__main__":
     unittest.main()

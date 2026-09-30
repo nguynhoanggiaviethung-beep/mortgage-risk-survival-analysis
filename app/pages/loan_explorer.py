@@ -26,8 +26,8 @@ from app.services import data_service as ds
 
 _EVENT_LABELS = {
     "DEFAULT": "Vỡ nợ",
-    "PREPAYMENT": "Trả trước hạn",
-    "VOLUNTARY_PREPAYMENT": "Trả trước hạn",
+    "PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
+    "VOLUNTARY_PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
     "CENSOR": "Kết thúc theo dõi",
     "CENSORED": "Kết thúc theo dõi",
 }
@@ -74,12 +74,12 @@ def _event_label(profile_event, timeline_event) -> tuple[str, str, str]:
     if normalized == "DEFAULT":
         return "Vỡ nợ", "bad", "Khoản vay ghi nhận Default tại tháng kết thúc theo dõi."
     if normalized in {"PREPAYMENT", "VOLUNTARY_PREPAYMENT"}:
-        return "Đã trả trước", "warn", "Khoản vay ghi nhận Voluntary Prepayment tại tháng kết thúc theo dõi."
+        return "ZBC 01 theo quy ước project", "warn", "Khoản vay ghi nhận Zero Balance Code 01 tại tháng kết thúc theo dõi. Nguồn Freddie Mac gộp prepaid/matured trong mã này."
     if normalized in {"CENSOR", "CENSORED", "RIGHT_CENSOR"}:
         return (
             "Kết thúc theo dõi",
             "neutral",
-            "Không ghi nhận Default hoặc Voluntary Prepayment trong thời gian quan sát. "
+            "Không ghi nhận Default hoặc Zero Balance Code 01 trong thời gian quan sát. "
             "Trạng thái này không xác nhận khoản vay vẫn còn active hiện nay.",
         )
     return "Chưa xác định", "neutral", "Không có event type hợp lệ để xác nhận trạng thái."
@@ -124,7 +124,7 @@ def _render_search_and_catalog() -> None:
             event = str(row["event_type"]).upper()
             color, tint = {
                 "DEFAULT": (RED, TINT_RED),
-                "PREPAYMENT": (BLUE, TINT_BLUE),
+            "PREPAYMENT": (BLUE, TINT_BLUE),
                 "CENSOR": (NAVY, TINT_NAVY),
             }.get(event, (NAVY, TINT_GRAY))
             label = _EVENT_LABELS.get(event, event)
@@ -297,7 +297,7 @@ def _render_loan_profile(loan_id: str) -> None:
     section_heading(
         4,
         "Diễn biến theo thời gian",
-        "Trục thời gian dùng origination-month proxy; kỳ thanh toán đầu tiên được quy ước là tháng 1.",
+        "Theo dõi delinquency status và current actual UPB theo tháng; mỗi panel có đơn vị riêng.",
     )
     callout(
         "Mốc khởi tạo là First Payment Date trừ một tháng theo định nghĩa nghiên cứu; "
@@ -308,11 +308,12 @@ def _render_loan_profile(loan_id: str) -> None:
     else:
         with st.container(border=True):
             st.plotly_chart(loan_timeline_chart(timeline, loan_age=loan_age), width="stretch")
+            st.caption("Khoảng trống trên chart biểu thị tháng không có bản ghi; marker cuối là kết cục hoặc kỳ performance cuối. Trục thời gian tính từ origination-month proxy, không phải ngày origination trực tiếp.")
         with st.expander("Xem bảng lịch sử theo tháng"):
             show_cols = [
                 column for column in [
                     "performance_month", "analysis_time_month", "current_delinquency_status",
-                    "current_actual_upb", "current_interest_rate", "zero_balance_code", "event_type",
+                    "delinquency_num", "is_ra", "current_actual_upb", "current_interest_rate", "zero_balance_code", "event_type",
                 ] if column in timeline.columns
             ]
             table = timeline[show_cols].sort_values("analysis_time_month").reset_index(drop=True)
@@ -375,7 +376,7 @@ def render() -> None:
     st.caption("TRANG 4 · TRA CỨU KHOẢN VAY")
     callout(
         "Tra cứu hồ sơ theo Loan ID, xem thông tin khoản vay và lịch sử performance theo tháng. "
-        "Các hồ sơ gợi ý bên dưới giúp bạn thử nhanh ba kết cục trong bộ dữ liệu."
+        "Các hồ sơ gợi ý bên dưới giúp bạn thử nhanh Default, ZBC 01 và censoring termination."
     )
 
     _render_search_and_catalog()
@@ -389,6 +390,6 @@ def render() -> None:
             "Nhập mã ở trên hoặc mở một mã từ danh mục gợi ý để xem chi tiết.",
         )
         callout(
-            "Gợi ý: thử một hồ sơ vỡ nợ, một hồ sơ trả trước hạn và một hồ sơ kết thúc theo dõi "
+            "Gợi ý: thử một hồ sơ Default, một hồ sơ ZBC 01 và một hồ sơ kết thúc theo dõi "
             "để so sánh cách mỗi kết cục xuất hiện trên timeline."
         )

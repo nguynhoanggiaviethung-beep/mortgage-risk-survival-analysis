@@ -34,27 +34,31 @@ inject_global_css()
 
 
 def _page_overview():
-    app_header(APP_TITLE, APP_SUBTITLE)
+    app_header(
+        "Mortgage risk overview",
+        "Theo dõi xác suất vỡ nợ và trả trước từ dữ liệu khoản vay Freddie Mac.",
+        "LOAN BOOK / 01",
+    )
     overview.render()
 
 
 def _page_portfolio_risk():
-    app_header(APP_TITLE, APP_SUBTITLE)
+    app_header("Rủi ro danh mục", "Đo lường xác suất vỡ nợ và trả trước theo nhóm khoản vay.", "PORTFOLIO / 02")
     portfolio_risk.render()
 
 
 def _page_risk_drivers():
-    app_header(APP_TITLE, APP_SUBTITLE)
+    app_header("Yếu tố rủi ro", "Đọc chiều hướng và độ bất định của các yếu tố liên quan đến rủi ro.", "RISK DRIVERS / 03")
     risk_drivers.render()
 
 
 def _page_loan_explorer():
-    app_header(APP_TITLE, APP_SUBTITLE)
+    app_header("Tra cứu khoản vay", "Xem đặc điểm và lịch sử quan sát của một khoản vay theo Loan ID.", "LOAN BOOK / 04")
     loan_explorer.render()
 
 
 def _page_model_insights():
-    app_header(APP_TITLE, APP_SUBTITLE)
+    app_header("Kết quả mô hình", "Đánh giá đường cong sống sót, xác suất tích lũy và giả định mô hình.", "MODEL REVIEW / 05")
     model_insights.render()
 
 
@@ -105,7 +109,7 @@ def _render_sidebar_dataset_card() -> None:
             f"""
             <div style="display:flex;align-items:center;gap:8px;margin:5px 0;">
               <span style="width:34px;font-size:12px;color:{PRIMARY_DARK};font-weight:600;">{y}</span>
-              <div style="flex:1;background:#E8EEF4;border-radius:4px;height:9px;">
+              <div style="flex:1;background:#46594D;border-radius:3px;height:9px;">
                 <div style="width:{max(int(c / peak * 100), 3)}%;background:{PRIMARY};height:9px;border-radius:4px;"></div>
               </div>
               <span style="width:58px;text-align:right;font-size:11px;color:{TEXT_MUTED};">{int(c):,}</span>
@@ -126,33 +130,39 @@ def _render_sidebar_dataset_card() -> None:
               Chưa đọc được số liệu theo năm — sẽ hiện khi có dữ liệu trong query/.
             </div>"""
 
-    st.html(
-        f"""
-        <div style="background:white;border:1px solid #BBDAF0;border-top:4px solid {PRIMARY};
-                    border-radius:10px;padding:14px 14px 10px 14px;">
-          <div style="font-size:14px;font-weight:700;color:{PRIMARY_DARK};margin-bottom:10px;">
-            Dữ liệu khoản vay
-          </div>
-          <div style="background:{ACCENT};border-radius:8px;padding:8px 10px;margin-bottom:10px;">
-            <div style="font-size:11px;color:{TEXT_MUTED};">Origination vintage</div>
-            <div style="font-size:18px;font-weight:700;color:{PRIMARY_DARK};">{cohort}</div>
-            <div style="font-size:11px;color:{TEXT_MUTED};margin-top:2px;">
-              Performance đến {PERFORMANCE_CUTOFF}
+    with st.expander(f"Dữ liệu khoản vay · {cohort}"):
+        st.html(
+            f"""
+            <div style="background:#F6F3E9;border:1px solid #DCD7C8;border-left:3px solid #B99B53;
+                        padding:10px 12px;color:{PRIMARY_DARK};">
+              <div style="font-size:11px;color:{TEXT_MUTED};text-transform:uppercase;letter-spacing:.06em;">Origination vintage</div>
+              <div style="font-size:18px;font-weight:700;color:{PRIMARY_DARK};">{cohort}</div>
+              <div style="font-size:11px;color:{TEXT_MUTED};margin-top:2px;">Performance đến {PERFORMANCE_CUTOFF}</div>
+              {total_html}
+              {by_year_html}
             </div>
-          </div>
-          {total_html}
-          {by_year_html}
-        </div>
-        """
-    )
+            """
+        )
 
-    # Trạng thái 8 dataset: thu gọn, không chiếm chỗ
+    # Trạng thái dữ liệu vẫn có sẵn nhưng không chiếm phần nhận diện / điều hướng.
     status = ds.dataset_status()
     ready = sum(1 for ok in status.values() if ok)
     with st.expander(f"Kiểm tra dữ liệu · {ready}/{len(status)} sẵn sàng"):
         for name, ok in status.items():
             st.markdown(f"{'✅' if ok else '⚪'} `{name}`")
         st.caption(f"Nguồn dữ liệu cục bộ: `{ds.PROJECT_ROOT}`")
+
+    st.html(
+        """
+        <div class="sidebar-brand-footer">
+          <div class="sidebar-brand-mark">FM</div>
+          <div class="sidebar-brand-copy">Freddie Mac
+            <span class="sidebar-brand-subtitle">Single-Family Loans</span>
+          </div>
+          <span class="sidebar-brand-dot"></span>
+        </div>
+        """
+    )
 
 
 with st.sidebar:

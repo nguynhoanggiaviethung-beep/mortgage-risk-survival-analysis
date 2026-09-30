@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.config import DANGER, SUCCESS
+from app.config import DANGER, PRIMARY, SUCCESS, WARNING
 
 
 def _delta_html(delta: str | None, delta_positive_is_good: bool) -> str:
@@ -25,11 +25,31 @@ def kpi_card(
 ) -> None:
     """Vẽ 1 thẻ KPI. delta_positive_is_good: với Default Rate, tăng là xấu
     (False); với Total Loans, tăng là tốt (True)."""
+    label_key = label.casefold()
+    accent = DANGER if ("default" in label_key or "vỡ nợ" in label_key) else (
+        PRIMARY if ("prepay" in label_key or "trả trước" in label_key or "zbc" in label_key) else (
+            SUCCESS if ("khoản vay" in label_key or "danh mục" in label_key) else WARNING
+        )
+    )
+    if "default" in label_key or "vỡ nợ" in label_key:
+        icon, category = "↘", "Cause-specific event"
+    elif "prepay" in label_key or "trả trước" in label_key or "zbc" in label_key:
+        icon, category = "↗", "Competing event"
+    elif "pd" in label_key or "cif" in label_key or "xác suất" in label_key:
+        icon, category = "◷", "Ước lượng tích lũy"
+    elif "khoản vay" in label_key or "danh mục" in label_key or "loan" in label_key:
+        icon, category = "▤", "Freddie Mac · loan-level"
+    else:
+        icon, category = "⌁", "Chỉ số danh mục"
+    footnote = f'<div class="kpi-footnote">{help_text}</div>' if help_text else ""
     st.markdown(
         f"""
-        <div class="kpi-card" title="{help_text or ''}">
+        <div class="kpi-card" style="--card-accent:{accent}">
+            <div class="kpi-icon">{icon}</div>
             <div class="kpi-label">{label}</div>
             <div class="kpi-value">{value}</div>
+            {footnote}
+            <div class="kpi-source">{category}</div>
             {_delta_html(delta, delta_positive_is_good)}
         </div>
         """,

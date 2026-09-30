@@ -14,6 +14,7 @@ Nội dung trang:
   9. Ghi chú phương pháp
 """
 
+import math
 import re
 
 import pandas as pd
@@ -22,19 +23,20 @@ import streamlit as st
 
 from app.components.kpi_card import kpi_row
 from app.components.styling import section_title
+from app.config import FONT_STACK
 from app.services import data_service as ds
 
 # BẢNG MÀU TƯƠNG PHẢN ĐỒNG BỘ CHO TẤT CẢ BIỂU ĐỒ
-COLOR_RISK_HIGH = "#C62828"     # Đỏ San Hô - Mức rủi ro cao
-COLOR_RISK_MID = "#EF6C00"      # Vàng Hổ Phách - Mức trung bình
-COLOR_RISK_LOW = "#2E7D32"      # Xanh Ngọc - Mức an toàn / rủi ro thấp
-COLOR_PREPAYMENT = "#1565C0"    # Xanh Dương - Tỷ lệ trả trước
-COLOR_TEXT_DARK = "#0F172A"     # Đen Đậm - Hiển thị chữ rõ 100%
+COLOR_RISK_HIGH = "#AD6254"     # đất nung dịu cho Default
+COLOR_RISK_MID = "#B08C45"      # vàng đồng
+COLOR_RISK_LOW = "#64816A"      # xanh sage
+COLOR_PREPAYMENT = "#637E69"   # xanh rêu dịu cho ZBC 01
+COLOR_TEXT_DARK = "#293A32"    # xanh rừng cho chữ
 
 DIM_ORDER = ["Điểm tín dụng (FICO)", "Tỷ lệ LTV", "Tỷ lệ DTI", "Lãi suất", "Kỳ hạn vay", "Năm giải ngân (Vintage)"]
 METRICS = {
     "Tỷ lệ vỡ nợ tích lũy (Default CIF)": "cif_default",
-    "Tỷ lệ trả trước tích lũy (Prepayment CIF)": "cif_prepayment",
+    "Voluntary Prepayment (ZBC 01) CIF": "cif_prepayment",
 }
 MIN_AT_RISK_FOR_RANKING = 100
 
@@ -87,19 +89,19 @@ def _pct(v, digits=2) -> str:
 def _layout(fig: go.Figure, height: int = 380) -> go.Figure:
     fig.update_layout(
         height=height,
-        font=dict(family="Arial, sans-serif", size=13, color=COLOR_TEXT_DARK),
-        plot_bgcolor="#FFFFFF",
-        paper_bgcolor="#FFFFFF",
+        font=dict(family=FONT_STACK, size=13, color=COLOR_TEXT_DARK),
+        plot_bgcolor="#FFFEFA",
+        paper_bgcolor="#FFFEFA",
         margin=dict(l=10, r=10, t=35, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
     )
-    fig.update_xaxes(showgrid=False, tickfont=dict(color=COLOR_TEXT_DARK, size=12, family="Arial"))
-    fig.update_yaxes(showgrid=True, gridcolor="#E2E8F0", tickfont=dict(color=COLOR_TEXT_DARK, size=12, family="Arial"))
+    fig.update_xaxes(showgrid=False, tickfont=dict(color=COLOR_TEXT_DARK, size=12, family=FONT_STACK))
+    fig.update_yaxes(showgrid=True, gridcolor="#E8E4D9", tickfont=dict(color=COLOR_TEXT_DARK, size=12, family=FONT_STACK))
     return fig
 
 
 def _chart_card_open():
-    st.markdown('<div style="background-color:#FFFFFF; padding:14px; border-radius:8px; border:1px solid #CBD5E1;">', unsafe_allow_html=True)
+    st.markdown('<div style="background-color:#FFFEFA; padding:14px; border-radius:4px; border:1px solid #DCD7C8; box-shadow:4px 4px 0 rgba(89,82,60,.10);">', unsafe_allow_html=True)
 
 
 def _chart_card_close():
@@ -140,13 +142,13 @@ def _not_enough(flag_series: pd.Series) -> bool:
 def _render_intro() -> None:
     st.markdown(
         f"""
-        <div style="background:#F1F5F9; border:1px solid #94A3B8; border-left:6px solid #0F172A;
-                    border-radius:8px; padding:16px; margin-bottom:12px;">
-          <div style="font-weight:800; font-size:16px; color:#0F172A; margin-bottom:6px;">HƯỚNG DẪN ĐỌC TRANG</div>
+        <div style="background:#F6F3E9; border:1px solid #DCD7C8; border-left:5px solid #B99B53;
+                    border-radius:4px; padding:16px; margin-bottom:12px;">
+          <div style="font-weight:800; font-size:16px; color:#293A32; margin-bottom:6px;">HƯỚNG DẪN ĐỌC TRANG</div>
           <div style="font-size:14px; line-height:1.6; color:{COLOR_TEXT_DARK};">
             <b>Tỷ lệ vỡ nợ tích lũy (Default CIF)</b> là xác suất một khoản vay
             <b>đã vỡ nợ</b> trong vòng <i>t</i> tháng kể từ thời điểm giải ngân, có tính đến việc khoản vay
-            cũng có thể bị <b>tất toán sớm (Voluntary Prepayment)</b> trước khi vỡ nợ.
+            cũng có thể ghi nhận <b>ZBC 01</b> trước khi Default.
             Đây chính là <b>PD(t)</b> của dự án. Trang hiển thị PD theo năm giải ngân (Vintage) và các mốc theo dõi
             có đủ dữ liệu; các đường CIF theo FICO, LTV và DTI được ước lượng riêng cho từng nhóm.
           </div>
@@ -224,19 +226,15 @@ def render() -> None:
 
     group_key = dim_map[dim_label]
     dim_all = data[data["group"] == group_key].copy()
-    agg = {c: "mean" for c in ["cif_default", "cif_prepayment"] if c in dim_all.columns}
-    if "number_at_risk" in dim_all.columns:
-        agg["number_at_risk"] = "max"
-    if "follow_up_flag" in dim_all.columns:
-        agg["follow_up_flag"] = "min"
-
     sub = dim_all[dim_all["horizon"] == horizon].copy()
     if sub.empty:
         st.info(f"Chưa có bản ghi cho '{dim_label}' tại mốc {horizon} tháng.")
         _render_vintage_section(None)
         return
 
-    sub = sub.groupby("group_value", as_index=False).agg(agg)
+    # A CIF is an estimate for a defined group/horizon; averaging duplicate
+    # rows would create a statistic with no clear risk-set denominator.
+    sub = sub.drop_duplicates("group_value", keep="last")
     if "follow_up_flag" in sub.columns:
         if _not_enough(sub["follow_up_flag"]):
             st.warning(
@@ -260,8 +258,8 @@ def render() -> None:
 
     base_val = None
     if not baseline_df.empty and metric in baseline_df.columns:
-        b = baseline_df[baseline_df["horizon"] == horizon][metric]
-        base_val = float(b.mean()) if not b.empty else None
+        b = baseline_df[baseline_df["horizon"] == horizon][metric].dropna()
+        base_val = float(b.iloc[-1]) if not b.empty else None
     sub["ratio"] = sub[metric] / base_val if base_val else float("nan")
 
     # ---- KPI tóm tắt ---------------------------------------------------------------
@@ -277,7 +275,7 @@ def render() -> None:
 
     hi = ranked.loc[ranked[metric].idxmax()]
     lo = ranked.loc[ranked[metric].idxmin()]
-    spread = (hi[metric] / lo[metric]) if (pd.notna(lo[metric]) and lo[metric] > 0) else None
+    spread = hi[metric] - lo[metric]
 
     kpi_row([
         {
@@ -296,9 +294,9 @@ def render() -> None:
             "help_text": f"{lo['ratio']:.2f}× trung bình danh mục" if pd.notna(lo["ratio"]) else None
         },
         {
-            "label": "Chênh lệch Cao / Thấp",
-            "value": f"{spread:.1f}×" if spread else "—",
-            "help_text": "Tỷ lệ chênh lệch giữa nhóm rủi ro cao nhất và thấp nhất"
+            "label": "Chênh lệch Cao − Thấp",
+            "value": f"{spread * 100:.2f} điểm %",
+            "help_text": "Chênh lệch tuyệt đối giữa hai CIF mô tả; không phải tác động nhân quả"
         },
     ])
 
@@ -330,7 +328,7 @@ def render() -> None:
         st.markdown(
             f"""
             <div style="margin-bottom:12px; font-weight:bold; font-size:13px; color:{COLOR_TEXT_DARK};">
-                <span style="color:{COLOR_PREPAYMENT}; font-size:16px;">■</span> Tỷ lệ trả trước tích lũy (Prepayment CIF)
+                <span style="color:{COLOR_PREPAYMENT}; font-size:16px;">■</span> Voluntary Prepayment (ZBC 01) CIF
             </div>
             """,
             unsafe_allow_html=True,
@@ -339,18 +337,18 @@ def render() -> None:
     fig = go.Figure(go.Bar(
         x=sub["group_value"], y=sub[metric], marker_color=colors,
         text=[_pct(v) for v in sub[metric]], textposition="outside",
-        textfont=dict(color=COLOR_TEXT_DARK, size=12, family="Arial"),
+        textfont=dict(color=COLOR_TEXT_DARK, size=12, family=FONT_STACK),
         hovertemplate="%{x}<br>" + metric_label + ": %{y:.2%}<extra></extra>",
     ))
     if base_val:
         fig.add_hline(
-            y=base_val, line_dash="dash", line_color="#334155", line_width=2,
+            y=base_val, line_dash="dash", line_color="#536056", line_width=2,
             annotation_text=f"TB danh mục: {_pct(base_val)}",
             annotation_position="top left",
-            annotation_font=dict(size=12, color=COLOR_TEXT_DARK)
+            annotation_font=dict(family=FONT_STACK, size=12, color=COLOR_TEXT_DARK)
         )
-    fig.update_yaxes(title=dict(text=metric_label, font=dict(color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", rangemode="tozero")
-    fig.update_xaxes(title=dict(text=dim_label, font=dict(color=COLOR_TEXT_DARK, size=13)))
+    fig.update_yaxes(title=dict(text=metric_label, font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", rangemode="tozero")
+    fig.update_xaxes(title=dict(text=dim_label, font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)))
     _chart_card_open()
     st.plotly_chart(_layout(fig), use_container_width=True)
     _chart_card_close()
@@ -371,8 +369,7 @@ def render() -> None:
     else:
         pivot = (
             heat_data
-            .groupby(["group_value", "horizon"], as_index=False)[metric]
-            .mean()
+            .drop_duplicates(["group_value", "horizon"], keep="last")
             .pivot(index="group_value", columns="horizon", values=metric)
         )
 
@@ -381,13 +378,13 @@ def render() -> None:
         else:
             pivot = pivot.loc[sorted(pivot.index, key=_band_key)]
 
-            heat_colorscale = [
-                [0.0, "#2E7D32"],
-                [0.3, "#1565C0"],
-                [0.6, "#FDE047"],
-                [0.8, "#EF6C00"],
-                [1.0, COLOR_RISK_HIGH],
-            ] if is_default else "Blues"
+            eligible_for_scale = data.copy()
+            if "follow_up_flag" in eligible_for_scale.columns:
+                eligible_for_scale = eligible_for_scale[_to_bool_series(eligible_for_scale["follow_up_flag"])]
+            scale_values = pd.to_numeric(eligible_for_scale.get(metric, pd.Series(dtype=float)), errors="coerce").dropna()
+            color_ceiling = min(1.0, max(0.05, float(scale_values.max()) if not scale_values.empty else 0.05))
+            color_ceiling = min(1.0, max(0.05, math.ceil(color_ceiling / 0.05) * 0.05))
+            heat_colorscale = "YlOrRd" if is_default else "Blues"
 
             heat = go.Figure(
                 go.Heatmap(
@@ -396,10 +393,14 @@ def render() -> None:
                     y=list(pivot.index),
                     text=[[_pct(v) for v in row] for row in pivot.values],
                     texttemplate="%{text}",
-                    textfont=dict(size=12, color=COLOR_TEXT_DARK),
+                    textfont=dict(family=FONT_STACK, size=12, color=COLOR_TEXT_DARK),
                     colorscale=heat_colorscale,
+                    zmin=0,
+                    zmax=color_ceiling,
+                    hoverongaps=False,
                     colorbar=dict(
-                        title=dict(text=metric_label, font=dict(color=COLOR_TEXT_DARK, size=12)),
+                        title=dict(text=metric_label, font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=12)),
+                        tickfont=dict(family=FONT_STACK, color=COLOR_TEXT_DARK),
                         tickformat=".0%",
                     ),
                     hovertemplate="%{y} · %{x}<br>" + metric_label + ": %{z:.2%}<extra></extra>",
@@ -413,6 +414,7 @@ def render() -> None:
                 use_container_width=True
             )
             _chart_card_close()
+            st.caption(f"Thang màu cho dataset hiện tại: 0%–{color_ceiling:.0%}. Ô trống nghĩa là horizon chưa đủ dữ liệu, không phải 0%.")
 
     # ---- Chiều nào phân biệt rủi ro mạnh nhất -------------------------------------------
     section_title(
@@ -430,25 +432,25 @@ def render() -> None:
         d = d[~d["group_value"].isin({"Chưa có dữ liệu"})]
         if "number_at_risk" in d.columns:
             d = d[d["number_at_risk"] >= MIN_AT_RISK_FOR_RANKING]
-        d_grouped = d.groupby("group_value")[metric].mean()
-        if len(d_grouped) >= 2 and d_grouped.min() > 0:
-            ratio_val = d_grouped.max() / d_grouped.min()
-            if pd.notna(ratio_val):
-                rows.append((label, ratio_val, d_grouped.idxmax(), d_grouped.idxmin()))
+        d_grouped = d.drop_duplicates("group_value").set_index("group_value")[metric]
+        if len(d_grouped) >= 2:
+            spread_value = d_grouped.max() - d_grouped.min()
+            if pd.notna(spread_value):
+                rows.append((label, spread_value, d_grouped.idxmax(), d_grouped.idxmin()))
 
     if rows:
         rows.sort(key=lambda r: r[1], reverse=True)
         sp = go.Figure(go.Bar(
-            x=[r[1] for r in rows],
+            x=[r[1] * 100 for r in rows],
             y=[r[0] for r in rows],
             orientation="h",
-            marker_color=[COLOR_RISK_HIGH if r[0] == dim_label else "#2E7D32" for r in rows],
-            text=[f"{r[1]:.1f}×  ({r[2]} vs {r[3]})" for r in rows],
+            marker_color=[COLOR_RISK_HIGH if r[0] == dim_label else COLOR_RISK_LOW for r in rows],
+            text=[f"{r[1] * 100:.2f} điểm %  ({r[2]} vs {r[3]})" for r in rows],
             textposition="outside",
-            textfont=dict(color=COLOR_TEXT_DARK, size=12),
-            hovertemplate="%{y}: %{x:.2f}×<extra></extra>",
+            textfont=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=12),
+            hovertemplate="%{y}: %{x:.2f} điểm %<extra></extra>",
         ))
-        sp.update_xaxes(title=dict(text="Tỷ lệ Cao nhất / Thấp nhất (lần)", font=dict(color=COLOR_TEXT_DARK, size=13)), rangemode="tozero")
+        sp.update_xaxes(title=dict(text="Chênh lệch CIF max − min (điểm %)", font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), rangemode="tozero")
         _chart_card_open()
         st.plotly_chart(_layout(sp, height=max(260, 55 * len(rows) + 80)), use_container_width=True)
         _chart_card_close()
@@ -461,7 +463,7 @@ def render() -> None:
     if "cif_default" in sub.columns:
         table["Default CIF (%)"] = sub["cif_default"] * 100
     if "cif_prepayment" in sub.columns:
-        table["Prepayment CIF (%)"] = sub["cif_prepayment"] * 100
+        table["Voluntary Prepayment (ZBC 01) CIF (%)"] = sub["cif_prepayment"] * 100
     if base_val:
         table["So với trung bình (lần)"] = sub["ratio"]
     if "number_at_risk" in sub.columns:
@@ -482,8 +484,8 @@ def render() -> None:
         col_cfg["Default CIF (%)"] = st.column_config.ProgressColumn(
             "Default CIF (%)", format="%.2f%%", min_value=0, max_value=max_cif
         )
-    if "Prepayment CIF (%)" in table.columns:
-        col_cfg["Prepayment CIF (%)"] = st.column_config.NumberColumn("Prepayment CIF (%)", format="%.2f%%")
+    if "Voluntary Prepayment (ZBC 01) CIF (%)" in table.columns:
+        col_cfg["Voluntary Prepayment (ZBC 01) CIF (%)"] = st.column_config.NumberColumn("Voluntary Prepayment (ZBC 01) CIF (%)", format="%.2f%%")
     if "So với trung bình (lần)" in table.columns:
         col_cfg["So với trung bình (lần)"] = st.column_config.NumberColumn("So với trung bình (lần)", format="%.2f×")
     if "Số khoản vay at-risk" in table.columns:
@@ -498,11 +500,11 @@ def render() -> None:
         + (f", bằng **{lo['ratio']:.2f} lần** mức trung bình." if pd.notna(lo["ratio"]) else "."),
     ]
     if spread:
-        insights.append(f"Khoảng cách chênh lệch giữa hai nhóm là **{spread:.1f} lần**.")
+        insights.append(f"Chênh lệch tuyệt đối giữa hai nhóm là **{spread * 100:.2f} điểm phần trăm**.")
 
     st.markdown(
         f"""
-        <div style='background-color:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:16px; margin-top:10px;'>
+        <div style='background-color:#F6F3E9; border:1px solid #DCD7C8; border-radius:4px; padding:16px; margin-top:10px;'>
             <p style='color:{COLOR_TEXT_DARK}; font-weight:bold; font-size:15px; margin-bottom:8px;'>Nhận xét đánh giá nhanh:</p>
             <ul style='color:{COLOR_TEXT_DARK}; font-size:14px; line-height:1.6; margin-left:-15px;'>
                 {"".join([f"<li>{t}</li>" for t in insights])}
@@ -525,11 +527,10 @@ def render() -> None:
     - **Không dùng 1 − Kaplan–Meier** làm xác suất Default tích lũy
     khi tồn tại competing event.
 
-    - **Định nghĩa sự kiện:** Default được xác định theo event-definition
-    của production pipeline, trong đó 90+ DPD là tín hiệu Default chính,
-    kết hợp các quy tắc fallback từ RA và Zero Balance khi phù hợp.
-    Voluntary Prepayment được xử lý là competing event;
-    các trạng thái còn lại được xử lý theo event mapping của pipeline.
+    - **Định nghĩa sự kiện:** Default = 90+ DPD, RA hoặc Zero Balance Code 02/03/09.
+    Voluntary Prepayment theo quy ước project = Zero Balance Code 01; ZBC 15/16/96 = censoring termination.
+    Event sớm nhất được chọn; nếu Default và ZBC 01 cùng tháng, Default được ưu tiên.
+    Freddie Mac gộp prepaid/matured trong ZBC 01 nên project không tách riêng maturity.
 
     - **Phạm vi:** Freddie Mac Sample Dataset 2016–2026,
     theo dõi đến 31/03/2026. Vintage 2026 là kỳ chưa đầy đủ.
@@ -575,21 +576,42 @@ def _render_vintage_section(selected_horizon) -> None:
 
     fig = go.Figure()
     vintage_palette = [COLOR_RISK_HIGH, COLOR_RISK_MID, COLOR_RISK_LOW, COLOR_PREPAYMENT]
+    vintage_curves = ds.get_aj_curves(endpoint="DEFAULT", group_name="vintage_year")
 
     for i, h in enumerate(sorted(chart_data["horizon"].unique())):
         d = chart_data[chart_data["horizon"] == h].sort_values("vintage")
+        lows, highs = [], []
+        for _, row in d.iterrows():
+            curve = vintage_curves[
+                (vintage_curves["group_value"].astype(str) == str(int(row["vintage"])))
+                & (pd.to_numeric(vintage_curves["analysis_time"], errors="coerce") <= h)
+            ].sort_values("analysis_time") if not vintage_curves.empty else pd.DataFrame()
+            point = curve.iloc[-1] if not curve.empty else None
+            lows.append(float(point["ci_lower"]) if point is not None and pd.notna(point.get("ci_lower")) else None)
+            highs.append(float(point["ci_upper"]) if point is not None and pd.notna(point.get("ci_upper")) else None)
+        values = pd.to_numeric(d["default_cif"], errors="coerce").tolist()
         fig.add_trace(go.Scatter(
             x=d["vintage"].astype(str),
-            y=d["default_cif"],
-            mode="lines+markers",
+            y=values,
+            mode="markers",
             name=f"{h} tháng",
-            line=dict(color=vintage_palette[i % len(vintage_palette)], width=3 if h == selected_horizon else 2),
-            marker=dict(size=8),
+            marker=dict(size=9, color=vintage_palette[i % len(vintage_palette)], symbol="circle"),
+            error_y=dict(
+                type="data", symmetric=False,
+                array=[max(0, hi - val) if hi is not None and pd.notna(val) else 0 for hi, val in zip(highs, values)],
+                arrayminus=[max(0, val - lo) if lo is not None and pd.notna(val) else 0 for lo, val in zip(lows, values)],
+                visible=any(value is not None for value in highs),
+                color=vintage_palette[i % len(vintage_palette)],
+            ),
+            customdata=d[[c for c in ("loan_count", "n_at_risk") if c in d.columns]].to_numpy(),
             opacity=1.0 if (h == selected_horizon or selected_horizon is None) else 0.6,
+            hovertemplate=("Vintage %{x}<br>Default CIF: %{y:.2%}<br>95% CI shown"
+                           + ("<br>Loans: %{customdata[0]:,}<br>At risk: %{customdata[1]:,}" if {"loan_count", "n_at_risk"}.issubset(d.columns) else "")
+                           + "<extra>%{fullData.name}</extra>"),
         ))
 
-    fig.update_yaxes(title=dict(text="Default CIF", font=dict(color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", rangemode="tozero")
-    fig.update_xaxes(title=dict(text="Năm giải ngân (Vintage)", font=dict(color=COLOR_TEXT_DARK, size=13)))
+    fig.update_yaxes(title=dict(text="Default CIF", font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), tickformat=".0%", range=[0, 1])
+    fig.update_xaxes(title=dict(text="Năm giải ngân (Vintage)", font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), type="category")
     _chart_card_open()
     st.plotly_chart(_layout(fig), use_container_width=True)
     _chart_card_close()

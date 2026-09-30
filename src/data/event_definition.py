@@ -85,6 +85,13 @@ def build_event_mapping(
         "zero_balance_code",
         "zero_balance_effective_date",
     ).with_columns(
+        # Normalize the reporting-period integer width before constructing
+        # event candidates. ZBC effective months are Int32; source/test
+        # performance frames may otherwise supply Int64 and Polars concat
+        # rejects the mixed candidate schemas.
+        pl.col("reporting_period_num")
+        .cast(pl.Int32)
+        .alias("reporting_period_num"),
         pl.col("zero_balance_code")
         .cast(pl.String)
         .str.strip_chars()

@@ -95,18 +95,51 @@ def _portfolio_km() -> pd.DataFrame:
     return result if not result.empty else ds.get_survival_results()
 
 
+def _portfolio_aj() -> pd.DataFrame:
+    return ds.get_aj_curves(group_name="portfolio")
+
+
+def _curve_at(curves: pd.DataFrame, endpoint: str, horizon: int) -> dict:
+    if curves.empty or not {"endpoint", "analysis_time", "cumulative_incidence"}.issubset(curves.columns):
+        return {}
+    part = curves[
+        (curves["endpoint"].astype(str).str.upper() == endpoint)
+        & (pd.to_numeric(curves["analysis_time"], errors="coerce") <= horizon)
+    ].sort_values("analysis_time")
+    if part.empty:
+        return {}
+    row = part.iloc[-1]
+    return {
+        "value": row.get("cumulative_incidence"),
+        "ci_low": row.get("ci_lower"),
+        "ci_high": row.get("ci_upper"),
+        "n_at_risk": row.get("n_at_risk"),
+    }
+
+
+def _ci_note(point: dict) -> str:
+    low, high = point.get("ci_low"), point.get("ci_high")
+    at_risk = point.get("n_at_risk")
+    bits = []
+    if pd.notna(low) and pd.notna(high):
+        bits.append(f"CI 95% {float(low):.2%}–{float(high):.2%}")
+    if pd.notna(at_risk):
+        bits.append(f"at-risk {int(at_risk):,}")
+    return " · ".join(bits) if bits else "Khoảng tin cậy chưa có trong bảng horizon."
+
+
 def _render_glossary(keys: list[str]) -> None:
     rows = "".join(
         '<div style="display:flex;gap:12px;align-items:flex-start;margin:7px 0;">'
         f'<span style="min-width:58px;text-align:center;background:{NAVY};color:#fff;'
         f'font-weight:700;padding:3px 9px;border-radius:999px;">{html.escape(key)}</span>'
-        f'<span style="color:#334155;line-height:1.5;">{html.escape(_GLOSSARY[key])}</span></div>'
+        f'<span style="color:#536056;line-height:1.5;">{html.escape(_GLOSSARY[key])}</span></div>'
         for key in keys if key in _GLOSSARY
     )
     if rows:
         st.markdown(
-            '<div style="background:#EAF1F8;border:1px solid #C8D7E5;border-left:6px solid '
-            f'{NAVY};border-radius:9px;padding:12px 16px;margin:8px 0 14px;">'
+            '<div style="background:#F6F3E9;border:1px solid #DCD7C8;border-left:4px solid '
+            f'#B99B53;border-radius:4px;padding:12px 16px;margin:8px 0 14px;box-shadow:4px 4px 0 rgba(89,82,60,.08);">'
             f'<strong style="color:{NAVY};">Chú thích · đọc trước khi xem kết quả</strong>{rows}</div>',
             unsafe_allow_html=True,
         )
@@ -120,6 +153,7 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
     cif = _portfolio_cif()
     km = _portfolio_km()
+    aj = _portfolio_aj()
     if cif.empty:
         st.info("Chưa có kết quả xác suất vỡ nợ (pd_results) đã công bố.")
         return cif, km
@@ -134,13 +168,13 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
                 stat_card(
                     f"Default CIF · {int(row['horizon'])} tháng",
                     _format_probability(row["cif_default"]),
-                    "Chỉ hiển thị khi mốc theo dõi đủ điều kiện.",
+                    _ci_note(_curve_at(aj, "DEFAULT", int(row["horizon"]))),
                     RED,
                     TINT_RED,
                 )
 
     _render_glossary(["PD(t)", "CIF"])
-    chart_data = cif.loc[_eligible_mask(cif)].copy()
+    chart_data = aj.copy()
     if not chart_data.empty:
         with st.container(border=True):
             st.plotly_chart(cif_chart(chart_data), width="stretch")
@@ -167,8 +201,11 @@ def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> No
 
     last_horizon = int(horizons["horizon"].max())
     km_display = km[pd.to_numeric(km["analysis_time"], errors="coerce") <= last_horizon].copy()
-    cif_display = cif.loc[_eligible_mask(cif)].copy()
-    cif_display = cif_display[pd.to_numeric(cif_display["horizon"], errors="coerce") <= last_horizon]
+    cif_display = _portfolio_aj()
+    cif_display = cif_display[
+        (cif_display["endpoint"].astype(str).str.upper() == "DEFAULT")
+        & (pd.to_numeric(cif_display["analysis_time"], errors="coerce") <= last_horizon)
+    ].copy()
     _render_glossary(["KM", "1 − KM", "CIF"])
     with st.container(border=True):
         st.plotly_chart(km_vs_cif_compare_chart(km_display, cif_display), width="stretch")
@@ -234,6 +271,17 @@ def _render_factor_analysis() -> str:
         format_func=lambda value: _MODEL_LABELS.get(value, value),
         key="page5_factor_model",
     )
+    if model_type == "Cox PH":
+        diagnostics = ds.get_model_diagnostics(model_type=model_type)
+        ph = diagnostics[
+            diagnostics.get("diagnostic_name", pd.Series(index=diagnostics.index, dtype=str))
+            .astype(str).str.contains("ph_global", case=False, na=False)
+        ] if not diagnostics.empty else pd.DataFrame()
+        if not ph.empty and ph.get("interpretation", pd.Series(dtype=str)).astype(str).str.upper().eq("FLAGGED").any():
+            st.warning(
+                "Cox PH: kiểm định proportional-hazards bị đánh dấu vi phạm. "
+                "Không diễn giải HR bên dưới như một tỷ số cố định theo thời gian; hãy đối chiếu với mô hình thay đổi theo thời gian."
+            )
     risk_df = ds.get_risk_driver_results(model_type=model_type)
     if risk_df.empty:
         st.info(f"Chưa có hệ số đã công bố cho phương pháp {_MODEL_LABELS[model_type]}.")
@@ -331,9 +379,9 @@ def _render_methodology() -> None:
         st.markdown(
             "- **Mốc thời gian:** origination month được vận hành bằng First Payment Date trừ một tháng; "
             "tháng thanh toán đầu tiên tương ứng tháng phân tích 1.\n"
-            "- **Vỡ nợ:** quá hạn từ 90 ngày trở lên (90+ DPD), mã RA hoặc Zero Balance Code 02/03/09.\n"
-            "- **Trả trước hạn tự nguyện:** nhận diện theo Zero Balance Code 01.\n"
-            "- **Censoring:** Zero Balance Code 15/16/96; kết thúc quan sát mà chưa ghi nhận vỡ nợ hoặc trả trước hạn.\n"
+            "- **Default:** 90+ DPD, mã RA hoặc Zero Balance Code 02/03/09.\n"
+            "- **Voluntary Prepayment:** Zero Balance Code 01 theo quy ước event của project. Freddie Mac gộp prepaid/matured trong mã nguồn này, nên project không tách riêng maturity.\n"
+            "- **Censoring termination:** Zero Balance Code 15/16/96; kết thúc quan sát mà chưa ghi nhận Default hoặc mã 01.\n"
             "- **Thứ tự sự kiện:** chọn sự kiện sớm nhất; nếu vỡ nợ và trả trước hạn cùng tháng, vỡ nợ được ưu tiên.\n"
             "- **Phạm vi:** vintage 2016–2026; dữ liệu performance đến 31/03/2026. Các mô hình dùng cohort "
             "complete-case theo biến đầu vào tương ứng.\n\n"
