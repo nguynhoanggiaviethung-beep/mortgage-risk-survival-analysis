@@ -1,207 +1,356 @@
-"""
-Trang 5 — Kết quả mô hình (trang học thuật/model)
-"""
+"""Trang 5 — PD theo thời gian, competing risks và hệ số mô hình."""
+
+from __future__ import annotations
+
+import html
+
 import pandas as pd
 import streamlit as st
-from app.components.charts import cif_chart, forest_plot, km_vs_cif_compare_chart, survival_curve_chart
-from app.components.styling import section_title
-from app.config import MODEL_TYPE_OPTIONS
+
+from app.components.charts import cif_chart, forest_plot, km_vs_cif_compare_chart
+from app.components.page_blocks import (
+    BLUE,
+    NAVY,
+    RED,
+    TINT_BLUE,
+    TINT_NAVY,
+    TINT_RED,
+    callout,
+    inject_page_blocks_css,
+    section_heading,
+    stat_card,
+)
 from app.services import data_service as ds
 
-_HAZARD_MODELS = {"Cox PH", "Time-varying Cox", "Cause-specific Hazard"}
-_CIF_MODELS = {"Aalen-Johansen / CIF", "Fine-Gray"}
+_FACTOR_MODELS = ["Cox PH", "Time-varying Cox", "Cause-specific Hazard", "Fine-Gray"]
+_MODEL_LABELS = {
+    "Cox PH": "Cox (rủi ro tỷ lệ)",
+    "Time-varying Cox": "Cox với biến thay đổi theo thời gian",
+    "Cause-specific Hazard": "Hazard theo từng nguyên nhân",
+    "Fine-Gray": "Fine–Gray (rủi ro cạnh tranh)",
+}
+_MAIN_HORIZONS = [12, 24, 36, 60]
+_ELIGIBLE_TOKENS = {"true", "1", "1.0", "y", "yes", "ok", "eligible", "sufficient", "full"}
+_VARIABLE_LABELS = {
+    "fico": "Credit Score (FICO)",
+    "original_ltv": "LTV ban đầu",
+    "original_dti": "DTI ban đầu",
+    "original_interest_rate": "Lãi suất ban đầu",
+    "original_loan_term": "Kỳ hạn vay ban đầu",
+    "lag_current_actual_upb": "Dư nợ thực tế tháng trước",
+    "lag_current_interest_rate": "Lãi suất tháng trước",
+    "lag_dq_1m": "Trễ hạn 1 tháng (tháng trước)",
+    "lag_dq_2m": "Trễ hạn 2 tháng (tháng trước)",
+}
+_GLOSSARY = {
+    "PD(t)": "Xác suất đã vỡ nợ tích lũy đến thời điểm t.",
+    "CIF": "Xác suất một kết cục đã xảy ra đến thời điểm t, có tính đến sự kiện cạnh tranh.",
+    "KM": "Kaplan–Meier: ước lượng xác suất chưa gặp sự kiện theo thời gian.",
+    "1 − KM": "Xác suất có sự kiện theo Kaplan–Meier khi sự kiện cạnh tranh được kiểm duyệt.",
+    "HR": "Tỷ số hazard tức thời. HR = 1 là mốc tham chiếu; HR > 1 hoặc < 1 biểu thị hazard cao hơn hoặc thấp hơn.",
+    "SHR": "Tỷ số subdistribution hazard trong Fine–Gray, có xét sự kiện cạnh tranh.",
+    "CI": "Khoảng tin cậy 95%. Nếu khoảng chứa 1 thì chưa có bằng chứng rõ về liên hệ khác 1.",
+    "p-value": "Mức bằng chứng thống kê; p < 0,05 thường được xem là có ý nghĩa danh nghĩa.",
+}
+
+
+def _format_probability(value) -> str:
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    return f"{value:.2%}" if pd.notna(value) else "—"
+
+
+def _eligible_mask(frame: pd.DataFrame) -> pd.Series:
+    if "follow_up_flag" not in frame.columns:
+        return pd.Series(True, index=frame.index)
+    value = frame["follow_up_flag"]
+    if pd.api.types.is_bool_dtype(value):
+        return value.fillna(False)
+    return value.astype(str).str.strip().str.lower().isin(_ELIGIBLE_TOKENS)
+
+
+def _main_horizon_rows(cif: pd.DataFrame, km: pd.DataFrame | None = None) -> pd.DataFrame:
+    if cif.empty or not {"horizon", "cif_default"}.issubset(cif.columns):
+        return pd.DataFrame()
+    eligible = cif.loc[_eligible_mask(cif)].copy()
+    eligible["horizon"] = pd.to_numeric(eligible["horizon"], errors="coerce")
+    max_km_time = None
+    if km is not None and not km.empty and "analysis_time" in km.columns:
+        max_km_time = pd.to_numeric(km["analysis_time"], errors="coerce").max()
+    keep = eligible[eligible["horizon"].isin(_MAIN_HORIZONS)]
+    if max_km_time is not None and pd.notna(max_km_time):
+        keep = keep[keep["horizon"] <= max_km_time]
+    return keep.sort_values("horizon").drop_duplicates("horizon")
+
+
+def _portfolio_cif() -> pd.DataFrame:
+    result = ds.get_pd_results(group="portfolio")
+    return result if not result.empty else ds.get_pd_results()
+
+
+def _portfolio_km() -> pd.DataFrame:
+    result = ds.get_survival_results(group="portfolio")
+    return result if not result.empty else ds.get_survival_results()
+
+
+def _render_glossary(keys: list[str]) -> None:
+    rows = "".join(
+        '<div style="display:flex;gap:12px;align-items:flex-start;margin:7px 0;">'
+        f'<span style="min-width:58px;text-align:center;background:{NAVY};color:#fff;'
+        f'font-weight:700;padding:3px 9px;border-radius:999px;">{html.escape(key)}</span>'
+        f'<span style="color:#334155;line-height:1.5;">{html.escape(_GLOSSARY[key])}</span></div>'
+        for key in keys if key in _GLOSSARY
+    )
+    if rows:
+        st.markdown(
+            '<div style="background:#EAF1F8;border:1px solid #C8D7E5;border-left:6px solid '
+            f'{NAVY};border-radius:9px;padding:12px 16px;margin:8px 0 14px;">'
+            f'<strong style="color:{NAVY};">Chú thích · đọc trước khi xem kết quả</strong>{rows}</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
+    section_heading(
+        1,
+        "Vỡ nợ tăng như thế nào theo thời gian?",
+        "Default CIF / PD(t) ước lượng xác suất vỡ nợ tích lũy và tính đến trả trước hạn như sự kiện cạnh tranh.",
+    )
+    cif = _portfolio_cif()
+    km = _portfolio_km()
+    if cif.empty:
+        st.info("Chưa có kết quả xác suất vỡ nợ (pd_results) đã công bố.")
+        return cif, km
+
+    horizons = _main_horizon_rows(cif)
+    if horizons.empty:
+        st.info("Chưa có mốc 12/24/36/60 tháng đủ thời gian theo dõi để báo cáo.")
+    else:
+        columns = st.columns(len(horizons))
+        for column, (_, row) in zip(columns, horizons.iterrows()):
+            with column:
+                stat_card(
+                    f"Default CIF · {int(row['horizon'])} tháng",
+                    _format_probability(row["cif_default"]),
+                    "Chỉ hiển thị khi mốc theo dõi đủ điều kiện.",
+                    RED,
+                    TINT_RED,
+                )
+
+    _render_glossary(["PD(t)", "CIF"])
+    chart_data = cif.loc[_eligible_mask(cif)].copy()
+    if not chart_data.empty:
+        with st.container(border=True):
+            st.plotly_chart(cif_chart(chart_data), width="stretch")
+    st.caption(
+        "Ví dụ cách đọc: Default CIF tại 36 tháng là tỷ lệ tích lũy khoản vay đã vỡ nợ đến tháng 36 "
+        "trong nhóm nghiên cứu; đây không phải xác suất vỡ nợ cá nhân hay ECL theo IFRS 9."
+    )
+    return cif, km
+
+
+def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> None:
+    section_heading(
+        2,
+        "Tại sao không dùng 1 − KM?",
+        "So sánh ước lượng Kaplan–Meier với Default CIF khi trả trước hạn là sự kiện cạnh tranh.",
+    )
+    if cif.empty or km.empty:
+        st.info("Cần cả survival_results và pd_results để so sánh.")
+        return
+    horizons = _main_horizon_rows(cif, km)
+    if horizons.empty:
+        st.info("Chưa có mốc chính đủ thời gian theo dõi để so sánh, không ngoại suy kết quả.")
+        return
+
+    last_horizon = int(horizons["horizon"].max())
+    km_display = km[pd.to_numeric(km["analysis_time"], errors="coerce") <= last_horizon].copy()
+    cif_display = cif.loc[_eligible_mask(cif)].copy()
+    cif_display = cif_display[pd.to_numeric(cif_display["horizon"], errors="coerce") <= last_horizon]
+    _render_glossary(["KM", "1 − KM", "CIF"])
+    with st.container(border=True):
+        st.plotly_chart(km_vs_cif_compare_chart(km_display, cif_display), width="stretch")
+
+    rows = []
+    for _, row in horizons.iterrows():
+        horizon = int(row["horizon"])
+        km_at_horizon = km.loc[
+            pd.to_numeric(km["analysis_time"], errors="coerce") <= horizon
+        ].sort_values("analysis_time")
+        if km_at_horizon.empty:
+            continue
+        naive = 1 - float(km_at_horizon["survival"].iloc[-1])
+        cif_value = float(row["cif_default"])
+        rows.append({
+            "Mốc theo dõi": f"{horizon} tháng",
+            "1 − KM": _format_probability(naive),
+            "Default CIF": _format_probability(cif_value),
+            "Chênh lệch (1 − KM) − CIF": f"{naive - cif_value:+.2%}",
+        })
+    if rows:
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    callout(
+        "1 − KM xem khoản trả trước hạn như bị kiểm duyệt và có thể đánh giá cao xác suất vỡ nợ. "
+        "Default CIF tính trả trước hạn là một kết cục cạnh tranh, nên phù hợp hơn để mô tả xác suất "
+        "vỡ nợ tích lũy trong bài toán này."
+    )
+
+
+def _variable_label(value: str) -> str:
+    return _VARIABLE_LABELS.get(value.strip().lower(), value)
+
+
+def _unit_label(variable: str) -> str:
+    key = variable.strip().lower()
+    if key in {"fico", "credit_score"}:
+        return "mỗi +1 điểm FICO"
+    if "ltv" in key:
+        return "mỗi +1 điểm phần trăm LTV"
+    if "dti" in key:
+        return "mỗi +1 điểm phần trăm DTI"
+    if "interest_rate" in key:
+        return "mỗi +1 điểm phần trăm lãi suất"
+    if "loan_term" in key:
+        return "mỗi +1 tháng kỳ hạn"
+    if "actual_upb" in key:
+        return "theo một đơn vị dư nợ đầu vào"
+    if "dq_" in key:
+        return "trạng thái chỉ báo 0 → 1"
+    return "theo đơn vị biến đầu vào"
+
+
+def _render_factor_analysis() -> str:
+    section_heading(
+        3,
+        "Những đặc điểm nào liên quan đến vỡ nợ?",
+        "Chọn mô hình để xem HR/SHR, khoảng tin cậy và mức bằng chứng thống kê.",
+    )
+    _render_glossary(["HR", "SHR", "CI", "p-value"])
+    model_type = st.selectbox(
+        "Chọn phương pháp",
+        _FACTOR_MODELS,
+        format_func=lambda value: _MODEL_LABELS.get(value, value),
+        key="page5_factor_model",
+    )
+    risk_df = ds.get_risk_driver_results(model_type=model_type)
+    if risk_df.empty:
+        st.info(f"Chưa có hệ số đã công bố cho phương pháp {_MODEL_LABELS[model_type]}.")
+        return model_type
+
+    sub = risk_df.copy()
+    endpoints = sorted(sub["endpoint"].dropna().unique()) if "endpoint" in sub.columns else []
+    if endpoints:
+        endpoint = endpoints[0]
+        if len(endpoints) > 1:
+            endpoint = st.radio(
+                "Sự kiện đang xét", endpoints, horizontal=True, key="page5_factor_endpoint"
+            )
+        sub = sub[sub["endpoint"] == endpoint]
+
+    metric = "SHR" if model_type == "Fine-Gray" else "HR"
+    effect_column = "hr_shr" if "hr_shr" in sub.columns else None
+    if effect_column is None or "variable" not in sub.columns:
+        st.info("Bảng hệ số chưa có các cột cần hiển thị.")
+        return model_type
+
+    plot_df = sub.copy()
+    plot_df["variable"] = plot_df["variable"].astype(str).map(_variable_label)
+    with st.container(border=True):
+        st.plotly_chart(forest_plot(plot_df), width="stretch")
+
+    rows = []
+    for _, row in sub.iterrows():
+        variable = str(row.get("variable", ""))
+        try:
+            estimate = float(row.get(effect_column))
+        except (TypeError, ValueError):
+            estimate = float("nan")
+        ci_low = pd.to_numeric(pd.Series([row.get("ci_low")]), errors="coerce").iloc[0]
+        ci_high = pd.to_numeric(pd.Series([row.get("ci_high")]), errors="coerce").iloc[0]
+        p_value = pd.to_numeric(pd.Series([row.get("p_value")]), errors="coerce").iloc[0]
+        unit = _unit_label(variable)
+        if pd.isna(estimate):
+            interpretation = "Chưa có ước lượng hợp lệ."
+        else:
+            direction = "cao hơn" if estimate > 1 else "thấp hơn" if estimate < 1 else "không đổi"
+            interpretation = f"{unit.capitalize()} liên quan với hazard {direction} trong mô hình."
+        if pd.notna(p_value) and pd.notna(ci_low) and pd.notna(ci_high):
+            evidence = "Có bằng chứng danh nghĩa" if p_value < 0.05 and (ci_low > 1 or ci_high < 1) else "Chưa rõ"
+        else:
+            evidence = "Thiếu p-value hoặc CI"
+        rows.append({
+            "Biến": variable,
+            metric: f"{estimate:.3f}" if pd.notna(estimate) else "—",
+            "Đơn vị diễn giải": unit,
+            "Khoảng tin cậy 95%": (
+                f"[{ci_low:.3f}; {ci_high:.3f}]" if pd.notna(ci_low) and pd.notna(ci_high) else "—"
+            ),
+            "Giá trị p": "<0.0001" if pd.notna(p_value) and p_value < 0.0001 else (
+                f"{p_value:.4f}" if pd.notna(p_value) else "—"
+            ),
+            "Bằng chứng": evidence,
+            "Diễn giải": interpretation,
+        })
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    callout(
+        f"{metric} > 1 liên quan với hazard {'phân phối con ' if metric == 'SHR' else ''}cao hơn; "
+        f"{metric} < 1 liên quan với mức thấp hơn. Đây là mối liên hệ trong mô hình, không phải quan hệ "
+        "nhân quả hay PD riêng của một khoản vay. p < 0,05 là bằng chứng danh nghĩa, chưa điều chỉnh "
+        "cho kiểm định nhiều biến."
+    )
+    return model_type
+
+
+def _render_diagnostics(model_type: str) -> None:
+    section_heading(4, "Kiểm định & chẩn đoán mô hình")
+    with st.expander("Xem chi tiết kiểm định mô hình"):
+        st.caption(f"Phương pháp đang chọn: {_MODEL_LABELS[model_type]}")
+        diagnostics = ds.get_model_diagnostics(model_type=model_type)
+        if diagnostics.empty:
+            st.info(f"Chưa có kết quả kiểm định cho phương pháp {_MODEL_LABELS[model_type]}.")
+            return
+        columns = [column for column in [
+            "model_version", "diagnostic_name", "metric", "value", "threshold", "interpretation",
+        ] if column in diagnostics.columns]
+        table = diagnostics[columns].rename(columns={
+            "model_version": "Phiên bản mô hình",
+            "diagnostic_name": "Kiểm định",
+            "metric": "Chỉ số",
+            "value": "Giá trị",
+            "threshold": "Ngưỡng",
+            "interpretation": "Diễn giải",
+        })
+        st.dataframe(table.reset_index(drop=True), width="stretch", hide_index=True)
+
+
+def _render_methodology() -> None:
+    section_heading(5, "Phương pháp & định nghĩa sự kiện")
+    with st.expander("Xem phương pháp và quy ước dữ liệu"):
+        st.markdown(
+            "- **Mốc thời gian:** origination month được vận hành bằng First Payment Date trừ một tháng; "
+            "tháng thanh toán đầu tiên tương ứng tháng phân tích 1.\n"
+            "- **Vỡ nợ:** quá hạn từ 90 ngày trở lên (90+ DPD), mã RA hoặc Zero Balance Code 02/03/09.\n"
+            "- **Trả trước hạn tự nguyện:** nhận diện theo Zero Balance Code 01.\n"
+            "- **Censoring:** Zero Balance Code 15/16/96; kết thúc quan sát mà chưa ghi nhận vỡ nợ hoặc trả trước hạn.\n"
+            "- **Thứ tự sự kiện:** chọn sự kiện sớm nhất; nếu vỡ nợ và trả trước hạn cùng tháng, vỡ nợ được ưu tiên.\n"
+            "- **Phạm vi:** vintage 2016–2026; dữ liệu performance đến 31/03/2026. Các mô hình dùng cohort "
+            "complete-case theo biến đầu vào tương ứng.\n\n"
+            "Default CIF mô tả xác suất vỡ nợ tích lũy khi có rủi ro cạnh tranh; đây không phải tổn thất tín dụng "
+            "kỳ vọng (ECL) đầy đủ theo IFRS 9."
+        )
 
 
 def render() -> None:
-    st.caption("Trang 5 · Kết quả mô hình")
-
-    # -------------------------------------------------------------------------
-    # BỔ SUNG: KHỐI BỘ LỌC PHẠM VI DỮ LIỆU (DATA SCOPE FILTERS)
-    # -------------------------------------------------------------------------
-    st.markdown("### 🎛️ Cấu hình Mô hình & Phạm vi Dữ liệu")
-    
-    col1, col2 = st.columns([2, 3])
-
-    with col1:
-        model_type = st.selectbox("Lựa chọn Mô hình (Model)", MODEL_TYPE_OPTIONS)
-    with col2:
-        st.info(
-            "Ước lượng mô hình dùng cohort complete-case 2016–2026. "
-            "Bảng PD theo vintage được xem riêng ở trang Rủi ro danh mục; "
-            "dashboard chưa có hệ số mô hình phân tầng theo vintage hoặc nhóm điểm."
-        )
-
-    st.divider()
-
-    # -------------------------------------------------------------------------
-    diagnostics = ds.get_model_diagnostics(model_type=model_type)
-
-    if model_type == "Kaplan-Meier":
-        _render_km()
-    elif model_type in _HAZARD_MODELS:
-        _render_hazard_model(model_type)
-    elif model_type in _CIF_MODELS:
-        _render_cif_model(model_type)
-
-    section_title("Model diagnostics")
-    if model_type == "Kaplan-Meier":
-        st.info(
-            "Kaplan–Meier là phương pháp phi tham số, không ước lượng hệ số nên không có "
-            "kiểm định hội tụ hay giả định proportional hazards. Dải tin cậy 95% được thể hiện "
-            "trên biểu đồ survival phía trên."
-        )
-    elif diagnostics.empty:
-        st.info(f"Chưa có model_diagnostics cho '{model_type}'.")
-    else:
-        show_cols = [c for c in [
-            "model_version", "diagnostic_name", "metric", "value", "threshold", "interpretation",
-        ] if c in diagnostics.columns]
-        st.dataframe(diagnostics[show_cols].reset_index(drop=True), width="stretch")
-
-    st.divider()
-    _render_competing_risk_comparison()
-
-
-def _render_km(group: str = "portfolio") -> None:
-    section_title("Kaplan–Meier survival")
-    survival = ds.get_survival_results(group=group)
-    if survival.empty:
-        survival = ds.get_survival_results()
-    if survival.empty:
-        st.info("Chưa có survival_results.")
-        return
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(survival_curve_chart(survival), width="stretch")
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.caption(
-        "S(t) = P(T > t) — KM coi mọi termination event (kể cả Voluntary "
-        "Prepayment) như censoring nếu không được tách competing-risk."
+    inject_page_blocks_css()
+    st.caption("TRANG 5 · KẾT QUẢ MÔ HÌNH")
+    callout(
+        "Trang này dẫn từ xác suất vỡ nợ theo thời gian đến cách mô hình hóa yếu tố liên quan, "
+        "đồng thời giải thích vai trò của trả trước hạn như một rủi ro cạnh tranh."
     )
-
-
-def _render_hazard_model(model_type: str) -> None:
-    section_title(f"{model_type} — Hazard Ratios")
-    risk_df = ds.get_risk_driver_results(model_type=model_type)
-    if risk_df.empty:
-        st.info(f"Chưa có risk_driver_results cho model_type='{model_type}'.")
-        return
-    
-    if "endpoint" in risk_df.columns:
-        endpoints = sorted(risk_df["endpoint"].dropna().unique())
-        endpoint = st.radio("Endpoint", endpoints, horizontal=True) if len(endpoints) > 1 else (endpoints[0] if len(endpoints) > 0 else None)
-        sub = risk_df[risk_df["endpoint"] == endpoint] if endpoint else risk_df
-    else:
-        sub = risk_df
-
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(forest_plot(sub), width="stretch")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def _render_cif_model(model_type: str) -> None:
-    section_title(f"{model_type} — Cumulative Incidence (Xác suất Vỡ nợ dồn tích)")
-    pd_res = ds.get_pd_results(group="portfolio")
-    if pd_res.empty:
-        pd_res = ds.get_pd_results()
-    if pd_res.empty:
-        st.info("Chưa có dữ liệu dự báo pd_results.")
-        return
-        
-    # 1. Hiển thị Biểu đồ CIF
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(cif_chart(pd_res), width="stretch")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # 2. BỔ SUNG: BẢNG BÁO CÁO XÁC SUẤT VỠ NỢ DỰ BÁO (PD FORECAST TABLE)
-    st.subheader("📊 Bảng Kết quả Dự báo Khả năng Vỡ nợ (Default Probability - PD)")
-    if "horizon" in pd_res.columns and "cif_default" in pd_res.columns:
-        # Lọc các mốc horizon chính (12M, 24M, 36M, 60M)
-        summary_pd = pd_res[["horizon", "cif_default"]].drop_duplicates().sort_values("horizon")
-        summary_pd["Tên mốc (Horizon)"] = summary_pd["horizon"].apply(lambda x: f"{int(x)} tháng ({int(x/12)} năm)" if x >= 12 else f"{int(x)} tháng")
-        summary_pd["Tỷ lệ Vỡ nợ Dự báo (PD %)" ] = (summary_pd["cif_default"] * 100).map("{:.2f}%".format)
-        
-        st.dataframe(
-            summary_pd[["Tên mốc (Horizon)", "Tỷ lệ Vỡ nợ Dự báo (PD %)"]].reset_index(drop=True),
-            width="stretch"
-        )
-        
-    if model_type == "Fine-Gray":
-        risk_df = ds.get_risk_driver_results(model_type="Fine-Gray")
-        if not risk_df.empty:
-            section_title("Sub-distribution Hazard Ratios (SHR)")
-            if "endpoint" in risk_df.columns:
-                endpoints = sorted(risk_df["endpoint"].dropna().unique())
-                endpoint = st.radio("Endpoint", endpoints, horizontal=True, key="fg_endpoint") \
-                    if len(endpoints) > 1 else (endpoints[0] if len(endpoints) > 0 else None)
-                sub_df = risk_df[risk_df["endpoint"] == endpoint] if endpoint else risk_df
-            else:
-                sub_df = risk_df
-                
-            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-            st.plotly_chart(forest_plot(sub_df), width="stretch")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-
-def _render_competing_risk_comparison(group: str = "portfolio") -> None:
-    section_title(
-        "So sánh: censoring (KM) vs competing risk (CIF)",
-        "LOCKED RULE (specification, mục 5): khi Voluntary Prepayment là "
-        "competing event, 1 − KM survival KHÔNG được dùng như Default CIF.",
-    )
-    km = ds.get_survival_results(group="portfolio")
-    if km.empty:
-        km = ds.get_survival_results()
-    cif = ds.get_pd_results(group="portfolio")
-    if cif.empty:
-        cif = ds.get_pd_results()
-
-    if km.empty or cif.empty:
-        st.info("Cần cả survival_results và pd_results để vẽ so sánh này.")
-        return
-
-    # 1. Vẽ Biểu đồ So sánh
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(km_vs_cif_compare_chart(km, cif), width="stretch")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # 2. Hiển thị Metric Tổng quan
-    horizon = int(cif["horizon"].max()) if "horizon" in cif.columns else 60
-    cif_val = cif.loc[cif["horizon"] == horizon, "cif_default"].mean() if "horizon" in cif.columns else 0
-    
-    if "analysis_time" in km.columns:
-        km_row = km.sort_values("analysis_time")
-        km_at_h = km_row.loc[km_row["analysis_time"] <= horizon, "survival"]
-        if not km_at_h.empty and cif_val == cif_val:
-            one_minus_km = 1 - km_at_h.iloc[-1]
-            gap = one_minus_km - cif_val
-            st.metric(
-                f"Chênh lệch tại {horizon}M: (1 − KM) − Default CIF",
-                f"{gap:+.2%}",
-                help="Chênh lệch dương nghĩa là bỏ qua competing risk sẽ overstate Default probability.",
-            )
-
-    # 3. BỔ SUNG: BẢNG CHI TIẾT KẾT QUẢ DỰ BÁO CÁC MỐC THỜI GIAN
-    st.markdown("#### 📋 Bảng Chi tiết Xác suất Vỡ nợ Dự báo (Default Probability)")
-    
-    if "horizon" in cif.columns and "cif_default" in cif.columns and "analysis_time" in km.columns:
-        horizons_to_show = [12, 24, 36, 48, 60]
-        rows = []
-        
-        for h in horizons_to_show:
-            cif_sub = cif[cif["horizon"] == h]
-            km_sub = km[km["analysis_time"] <= h]
-            
-            if not cif_sub.empty and not km_sub.empty:
-                val_cif = cif_sub["cif_default"].values[0]
-                val_km_pd = 1 - km_sub.sort_values("analysis_time")["survival"].values[-1]
-                diff = val_km_pd - val_cif
-                
-                rows.append({
-                    "Mốc theo dõi (Horizon)": f"{h} Tháng",
-                    "KM Naive PD (Bỏ qua Prepayment)": f"{val_km_pd:.2%}",
-                    "Aalen–Johansen Default CIF (Competing Risk)": f"{val_cif:.2%}",
-                    "Mức Thổi phồng Rủi ro (Overestimate Gap)": f"+{diff:.2%}"
-                })
-        
-        if rows:
-            st.dataframe(pd.DataFrame(rows), width="stretch")
+    cif, km = _render_default_cif()
+    _render_competing_risk_comparison(cif, km)
+    factor_model = _render_factor_analysis()
+    _render_diagnostics(factor_model)
+    _render_methodology()

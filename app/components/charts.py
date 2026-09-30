@@ -5,13 +5,13 @@ from __future__ import annotations
 import pandas as pd
 import plotly.graph_objects as go
 
-from app.config import CHART_SEQUENCE, DANGER, FONT_STACK, PRIMARY, SUCCESS, TEXT_MUTED
+from app.config import CHART_SEQUENCE, DANGER, FONT_STACK, PRIMARY, PRIMARY_DARK, SUCCESS, TEXT_MUTED
 
 _LAYOUT_DEFAULTS = dict(
     font=dict(family=FONT_STACK, size=12, color="#1A1A1A"),
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    margin=dict(l=10, r=10, t=30, b=10),
+    plot_bgcolor="#FFFFFF",
+    paper_bgcolor="#FFFFFF",
+    margin=dict(l=18, r=18, t=42, b=18),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
     colorway=CHART_SEQUENCE,
 )
@@ -19,8 +19,9 @@ _LAYOUT_DEFAULTS = dict(
 
 def _apply_layout(fig: go.Figure, height: int = 360) -> go.Figure:
     fig.update_layout(height=height, **_LAYOUT_DEFAULTS)
-    fig.update_xaxes(showgrid=True, gridcolor="#EEF2F6")
-    fig.update_yaxes(showgrid=True, gridcolor="#EEF2F6")
+    fig.update_xaxes(showgrid=False, linecolor="#D8E1EA", tickfont=dict(color="#5B6570"))
+    fig.update_yaxes(showgrid=True, gridcolor="#EEF2F6", zerolinecolor="#D8E1EA", tickfont=dict(color="#5B6570"))
+    fig.update_layout(legend=dict(font=dict(color=PRIMARY_DARK)), hoverlabel=dict(bgcolor="#163A56", font_color="#FFFFFF"))
     return fig
 
 
@@ -146,15 +147,23 @@ def loan_timeline_chart(df: pd.DataFrame, loan_age: int | None = None) -> go.Fig
     if loan_age is not None:
         fig.add_trace(go.Scatter(
             x=[loan_age], y=[0], mode="markers+text",
-            marker=dict(size=13, color=DANGER, symbol="star"),
-            text=["Current"], textposition="top center", name="Current",
+            marker=dict(size=13, color=TEXT_MUTED, symbol="circle-open"),
+            text=["Kỳ cuối quan sát"], textposition="top center", name="Kỳ cuối quan sát",
         ))
     event_rows = d[d.get("event_type", pd.Series(dtype=object)).isin(["DEFAULT", "VOLUNTARY_PREPAYMENT"])]
-    if not event_rows.empty:
+    default_rows = event_rows[event_rows["event_type"] == "DEFAULT"]
+    prepayment_rows = event_rows[event_rows["event_type"] == "VOLUNTARY_PREPAYMENT"]
+    if not default_rows.empty:
         fig.add_trace(go.Scatter(
-            x=event_rows["analysis_time_month"], y=[0] * len(event_rows), mode="markers+text",
-            marker=dict(size=13, color=SUCCESS, symbol="x"),
-            text=event_rows["event_type"], textposition="bottom center", name="Event",
+            x=default_rows["analysis_time_month"], y=[0] * len(default_rows), mode="markers+text",
+            marker=dict(size=13, color=DANGER, symbol="x"),
+            text=["Vỡ nợ"] * len(default_rows), textposition="bottom center", name="Vỡ nợ",
+        ))
+    if not prepayment_rows.empty:
+        fig.add_trace(go.Scatter(
+            x=prepayment_rows["analysis_time_month"], y=[0] * len(prepayment_rows), mode="markers+text",
+            marker=dict(size=13, color=PRIMARY, symbol="diamond"),
+            text=["Trả trước hạn"] * len(prepayment_rows), textposition="bottom center", name="Trả trước hạn",
         ))
     fig.update_yaxes(visible=False, range=[-1, 1])
     fig.update_xaxes(title="Months since origination-month proxy (first payment = month 1)")

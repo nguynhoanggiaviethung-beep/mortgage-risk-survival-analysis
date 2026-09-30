@@ -1,37 +1,25 @@
-"""
-Theme dùng chung cho toàn bộ dashboard.
+"""Display labels, colors, and typography for the dashboard UI."""
 
-Bảng màu và font được chọn để đồng bộ với
-`Project_Specification_Mortgage_Survival_Analysis.docx`:
-- Màu shading header bảng trong docx: #D9EAF7 (light blue) -> dùng làm
-  ACCENT / nền header, nền KPI card.
-- Font docx: "Aptos" / "Aptos Display" -> trình duyệt không có font này,
-  nên dùng fallback stack gần nhất (Segoe UI / Calibri / system sans-serif)
-  để giữ cảm giác "Office document" nhất quán.
-- Bảng "LOCKED / CONFIRMED / PENDING VALIDATION" trong docx dùng màu
-  semantic (xanh lá = locked/ổn, cam = pending, đỏ = vi phạm) -> tái dùng
-  cho status pill và cảnh báo trong dashboard.
-"""
+APP_TITLE = "Phân tích rủi ro khoản vay thế chấp"
+APP_SUBTITLE = "Mortgage Default & Prepayment · Survival Analysis"
 
-APP_TITLE = "Hệ thống phân tích rủi ro tín dụng khoản vay thế chấp"
-APP_SUBTITLE = "Mortgage Default & Prepayment – Survival Analysis Dashboard"
-
-# ---- Màu chính (đồng bộ với docx) -----------------------------------------
-PRIMARY = "#1F4E79"        # xanh navy đậm — tiêu đề, heading, đường viền nhấn
-PRIMARY_DARK = "#163A56"   # header bar / sidebar
-ACCENT = "#D9EAF7"         # xanh nhạt — đúng màu shade header bảng trong docx
-ACCENT_STRONG = "#BBDAF0"  # dùng cho hover / active tab
+# ---- Bảng màu xanh navy/xanh nhạt ban đầu ----------------------------------
+PRIMARY = "#1F4E79"
+PRIMARY_DARK = "#163A56"
+ACCENT = "#D9EAF7"
+ACCENT_STRONG = "#BBDAF0"
 
 TEXT_MAIN = "#1A1A1A"
 TEXT_MUTED = "#5B6570"
 
-SUCCESS = "#2E7D32"    # LOCKED / CONFIRMED / risk thấp
-WARNING = "#B7791F"    # PENDING VALIDATION / cảnh báo
-DANGER = "#B3261E"     # vi phạm rule / risk cao
+SUCCESS = "#2E7D32"
+WARNING = "#B7791F"
+DANGER = "#B3261E"
 
 CHART_SEQUENCE = [PRIMARY, "#4C86B5", "#7FB3D5", SUCCESS, WARNING, DANGER]
 
-FONT_STACK = "'Aptos','Aptos Display','Segoe UI','Calibri',sans-serif"
+FONT_STACK = "'Lora',Georgia,serif"
+DISPLAY_FONT_STACK = "'Lora',Georgia,serif"
 
 # ---- Nhãn hiển thị dùng chung ----------------------------------------------
 HORIZON_OPTIONS = [12, 24, 36, 60]

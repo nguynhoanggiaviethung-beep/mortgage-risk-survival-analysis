@@ -256,6 +256,29 @@ def get_loan_profile(loan_id: str | None = None) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def get_loan_catalog() -> pd.DataFrame:
+    """Return a small, representative, searchable set of eligible loan examples."""
+    if not ANALYSIS_PATH.exists():
+        return _legacy("loan_profile").head(40)
+
+    columns = [
+        "loan_id", "vintage_year", "event_type", "fico", "original_ltv",
+        "original_dti", "original_loan_term", "duration_months",
+    ]
+    catalog = (
+        pl.scan_parquet(ANALYSIS_PATH)
+        .filter(pl.col("survival_eligible"))
+        .select(columns)
+        .unique(subset=["vintage_year", "event_type"], keep="first", maintain_order=True)
+        .sort(["vintage_year", "event_type"])
+        .collect()
+        .to_pandas()
+        .rename(columns={"vintage_year": "origination_vintage"})
+    )
+    return catalog
+
+
+@st.cache_data(show_spinner=False)
 def get_loan_timeline(loan_id: str | None = None) -> pd.DataFrame:
     if not loan_id or not PERFORMANCE_PATH.exists() or not ANALYSIS_PATH.exists():
         return _legacy("loan_timeline")
