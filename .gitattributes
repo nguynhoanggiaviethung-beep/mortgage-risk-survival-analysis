@@ -1,0 +1,3 @@
+# Production artifacts are integrity-checked by their exact SHA-256 bytes.
+# Keep Git from rewriting their line endings on Windows checkouts.
+results/production/** -text

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.config import DANGER, SUCCESS, TEXT_MUTED
+from app.config import DANGER, SUCCESS
 
 
 def _delta_html(delta: str | None, delta_positive_is_good: bool) -> str:
@@ -35,10 +35,6 @@ def kpi_card(
         """,
         unsafe_allow_html=True,
     )
-    if help_text:
-        st.caption(f":gray[{help_text}]")
-
-
 def kpi_row(items: list[dict]) -> None:
     """items: list các dict {label, value, delta?, delta_positive_is_good?, help_text?}."""
     cols = st.columns(len(items))
