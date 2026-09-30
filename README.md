@@ -1,232 +1,170 @@
-# Mortgage Default & Prepayment Survival Analysis
+# Hướng dẫn cài đặt cho người mới
 
-**Chưa quen công nghệ?** Làm theo từng bước trong [Hướng dẫn cài đặt cho người mới](README_NGUOI_MOI.md) để cài trên Windows, lấy dữ liệu, chạy mô hình và mở dashboard.
+> Tài liệu này dành cho máy Windows mới, chưa cài công cụ lập trình. Làm lần lượt từ trên xuống. Bạn không cần biết Python hay R để làm theo.
 
-This project prepares Freddie Mac Single-Family Loan-Level Dataset (SFLLD)
-sample vintages for survival analysis of mortgage default and prepayment. The
-current data-preparation pipeline covers 2016-2026; 2026 is a partial vintage.
+## Hệ thống này làm gì?
 
-The prepared data supports the next modeling phase:
+Ứng dụng đọc dữ liệu khoản vay Freddie Mac, xử lý dữ liệu, chạy các mô hình rủi ro vỡ nợ/trả trước, rồi mở dashboard trong trình duyệt.
 
-- Kaplan-Meier estimates and horizon default probabilities;
-- Cox proportional-hazards models and diagnostics;
-- cause-specific default and prepayment models;
-- competing-risk and cumulative-incidence analysis; and
-- vintage comparisons.
+**Lưu ý quan trọng:** tải mã nguồn từ GitHub thôi chưa đủ để xem dashboard. Các bộ dữ liệu và kết quả mô hình có dung lượng lớn nên không nằm trong nhánh Git. Bạn cần lấy dữ liệu Freddie Mac và chạy các bước xử lý bên dưới, hoặc nhờ nhóm cung cấp bộ dữ liệu/kết quả đã được chuẩn bị đúng phiên bản.
 
-## Data policy
+## 1. Chuẩn bị trên máy Windows
 
-Freddie Mac source data and generated Parquet datasets are local artifacts and
-are not stored in Git. Place all 2016–2026 source archives in `src/data/`;
-the parser detects each vintage from the archive name:
+Bạn cần kết nối Internet và vài GB dung lượng trống. Cài các chương trình sau:
 
-```text
-src/data/<Freddie Mac archive for each vintage 2016–2026>.zip
-```
+1. **Git** để tải dự án: [tải Git cho Windows](https://git-scm.com/install/windows). Khi cài đặt, có thể giữ các lựa chọn mặc định.
+2. **Python 3.12 bản 64-bit**: mở [trang tải Python cho Windows](https://www.python.org/downloads/windows/), chọn bản Python 3.12 mới nhất và chọn Windows installer 64-bit. Trong cửa sổ cài đặt, đánh dấu **Add Python to PATH** trước khi bấm Install.
+3. **R 4.6.1 bản 64-bit**: tải từ [CRAN](https://cran.r-project.org/bin/windows/base/). Giữ tùy chọn cài các package được đề xuất. Dự án yêu cầu package `survival` phiên bản **3.8-6**; hướng dẫn kiểm tra ở bước 6.
+4. **Visual Studio Code** (không bắt buộc, nhưng giúp mở thư mục dự án): [tải VS Code](https://code.visualstudio.com/Download).
 
-The pipeline writes generated data to:
+## 2. Tải mã nguồn dự án
 
-```text
-data/processed/   # parsed origination and monthly-performance data
-data/model/       # cleaned, event, survival-duration, and model datasets
-data/_temp/       # temporary extracted source files
-```
-
-The existing `.gitignore` excludes these data directories, `*.parquet`, and
-`*.zip`. Do not edit raw ZIP files or commit them to source control.
-
-## Environment
-
-Create and activate a virtual environment, then install the project
-dependencies:
+Mở **PowerShell**: bấm Start, gõ `PowerShell`, rồi mở ứng dụng Windows PowerShell. Dán từng dòng sau và nhấn Enter:
 
 ```powershell
-python -m venv .venv
+git clone --branch frontend-kha --single-branch https://github.com/nguynhoanggiaviethung-beep/mortgage-risk-survival-analysis.git
+cd mortgage-risk-survival-analysis
+```
+
+Nếu GitHub báo không có quyền truy cập, hãy nhờ người quản lý dự án cấp quyền cho tài khoản GitHub của bạn. Nếu dự án đã được tải về trước đó, chỉ cần mở PowerShell tại thư mục dự án.
+
+## 3. Cài thư viện của dự án
+
+Trong PowerShell, tại thư mục dự án, chạy lần lượt:
+
+```powershell
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Pipeline
-
-Run commands from the project root. The main reproducible sequence is:
+Khi thành công, đầu dòng PowerShell thường có chữ `(.venv)`. Nếu Windows báo rằng không cho chạy `Activate.ps1`, chỉ cho phép trong cửa sổ PowerShell hiện tại rồi thử lại:
 
 ```powershell
-# 1. Parse available Freddie Mac sample ZIP files
-python scripts\process_all.py
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
 
-# 2. Audit processed files, then clean them
+Cài thư viện có thể mất vài phút. Giữ kết nối Internet cho đến khi lệnh kết thúc.
+
+## 4. Tải dữ liệu Freddie Mac
+
+Dữ liệu được tải từ [trang Freddie Mac Single-Family Loan-Level Dataset](https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset). Freddie Mac yêu cầu đăng ký và đăng nhập Clarity Data Intelligence để tải dữ liệu; hãy đọc điều khoản sử dụng trên trang đó. Không đưa tài khoản hoặc mật khẩu vào mã nguồn.
+
+Tải **sample data** cho từng vintage từ **2016 đến 2026**, bao gồm cả dữ liệu origination và monthly performance. Đặt ZIP vào thư mục `src/data/` trong dự án và đặt đúng tên như sau:
+
+```text
+src/data/sample_2016.zip
+src/data/sample_2017.zip
+src/data/sample_2018.zip
+src/data/sample_2019.zip
+src/data/sample_2020.zip
+src/data/sample_2021.zip
+src/data/sample_2022.zip
+src/data/sample_2023.zip
+src/data/sample_2024.zip
+src/data/sample_2025.zip
+src/data/sample_2026.zip
+```
+
+Mỗi ZIP phải chứa đúng hai tệp của năm đó, ví dụ `sample_orig_2016.txt` và `sample_perf_2016.txt`. Không giải nén thủ công. Nếu tên file tải về khác, chỉ đổi tên ZIP khi bên trong vẫn có hai tệp đúng tên và đúng năm như trên.
+
+Nếu trang Freddie Mac chỉ cung cấp dữ liệu mới hơn và các bước kiểm định ở dưới báo sai số dòng, **dừng tại đó**. Không sửa số kiểm định hoặc gộp dữ liệu khác phiên bản; liên hệ người quản lý dự án để xác nhận bộ dữ liệu phù hợp với nghiên cứu. Dữ liệu Freddie Mac có thể được cập nhật theo thời gian.
+
+## 5. Tạo dữ liệu phân tích
+
+Trong PowerShell vẫn ở thư mục dự án và đang thấy `(.venv)`, chạy **từng lệnh một**, chờ lệnh trước chạy xong mới chạy lệnh kế tiếp:
+
+```powershell
+python scripts\process_all.py
 python scripts\check_data.py
 python scripts\clean_all.py
 python scripts\final_data_validation.py
-
-# 3. Audit and build the locked event mapping
 python scripts\audit_event_conflicts.py
 python scripts\build_event_maps_all.py
-
-# 4. Audit and build the fixed-origin survival duration
 python scripts\audit_loan_age_duration.py
 python scripts\build_survival_duration_all.py
-
-# 5. Build model-ready datasets
 python scripts\build_model_datasets_all.py
 ```
 
-Single-year ingestion and cleaning are also available:
+`process_all.py` cần tìm đủ ZIP từ `sample_2016.zip` đến `sample_2026.zip`. Hãy kiểm tra phần tổng kết của mỗi lệnh. Nếu thấy `FAILED`, `Missing ZIP`, hoặc lỗi màu đỏ, hãy dừng lại và xử lý nguyên nhân trước khi chạy bước kế tiếp.
+
+## 6. Kiểm tra R và package survival
+
+Trong PowerShell, kiểm tra R đã được cài:
 
 ```powershell
-python scripts\process_year.py 2016
-python scripts\clean_year.py 2016
+Rscript --version
+Rscript -e "packageVersion('survival')"
 ```
 
-Audit and validation scripts under `scripts/` are part of the reproducibility
-evidence, not disposable utilities.
+Kết quả mong đợi là R **4.6.1** và `survival` **3.8.6** (R hiển thị phiên bản package là `3.8.6`, tương ứng `3.8-6`). Nếu PowerShell không tìm thấy `Rscript`, R chưa được cài đúng hoặc chưa mở lại PowerShell sau khi cài. Nếu phiên bản khác, dừng và nhờ người quản lý dự án hướng dẫn cài đúng phiên bản; không dùng phiên bản mới nhất thay thế một cách tự động.
 
-## Locked methodology
+## 7. Chạy và xuất bản các mô hình
 
-Repository cleanup and future organization changes must not silently alter the
-validated methodology:
-
-- Event codes are `0=CENSOR`, `1=DEFAULT`, and `2=PREPAYMENT`.
-- Default is identified using 90+ DPD, RA, and Zero Balance Codes 02/03/09. For each loan, the earliest event is selected; when Default and Prepayment occur in the same month, Default takes precedence.
-- Same-month default and prepayment is classified as default while retaining
-  the conflict flag.
-- The survival origin follows the project outline: Origination Month. The
-  Freddie Mac extract used here has First Payment Date but no direct
-  origination date, so `operational_origination_date` is an explicit proxy
-  defined as First Payment Date minus one calendar month.
-- `analysis_time_month = performance_month - operational_origination_date`
-  in calendar months; the first payment month is analysis month 1. This is
-  numerically equivalent to `performance_month - first_payment_month + 1`
-  under the stated proxy, but is described as time since proxy origination.
-- Loans whose event occurs before their first observed performance month are
-  retained for audit and excluded from the survival risk set; time is not
-  clamped.
-- Missing core covariates are not imputed. All eligible loans remain in the
-  master model dataset, with `core_covariates_complete_flag` identifying the
-  complete-case sample.
-- The time-varying default Cox model uses prior-month UPB, interest rate, and
-  1-/2-month delinquency indicators. The 90+ DPD event-month value is excluded
-  to prevent target leakage; a 3+-month delinquency predictor has no variation
-  before the first-90+ event and is not fitted. The time-varying fit uses a
-  fixed L2 penalizer of 0.1 to stabilize near-separation; it is recorded in
-  model diagnostics.
-
-See the audit reports in `reports/` and the implementation in `src/data/` for
-the complete definitions and preserved evidence columns.
-
-## Modeling workflow
-
-The modeling layer is kept separate from data preparation. After the data
-pipeline has produced the validated combined loan-level and monthly files,
-the production runner can fit and version the survival and competing-risk
-models. It records a run manifest, input fingerprints, model artifacts, and
-diagnostics under `results/production/`; mock artifacts are not production
-results.
-
-The modeling runner supports a read-only preflight before a full run:
+Kiểm tra đầu vào trước. Lệnh này chỉ kiểm tra và không chạy mô hình:
 
 ```powershell
-python scripts\run_production.py preflight --group python
-python scripts\run_production.py preflight --group complete --rscript "C:\path\to\Rscript.exe"
+python scripts\run_production.py preflight --group complete --rscript "C:\Program Files\R\R-4.6.1\bin\Rscript.exe"
 ```
 
-The complete model release requires the configured R runtime and the
-`survival` package. Build, validate, and publish are separate explicit steps;
-publishing is only for a validated run:
+Nếu R được cài ở chỗ khác, thay đường dẫn trên bằng vị trí `Rscript.exe` trên máy bạn. Nếu kết quả preflight có lỗi, không bỏ qua.
+
+Khi preflight thành công, chạy toàn bộ mô hình:
 
 ```powershell
-python scripts\run_production.py build --rscript "C:\path\to\Rscript.exe" --confirm-full-production
-python scripts\run_production.py validate --run-id <run-id>
-python scripts\run_production.py publish --run-id <run-id> --confirm-publish
+python scripts\run_production.py build --rscript "C:\Program Files\R\R-4.6.1\bin\Rscript.exe" --confirm-full-production
 ```
 
-Do not publish results until the cohort, time origin, data cutoff, event
-mapping, and model inputs match the locked specification. The production
-preflight checks that code is committed and records each local input's row
-count and SHA-256. Model-specific input validators enforce the schemas and
-event/time consistency before estimation. Reconcile counts against a fresh
-pipeline validation report before treating a run as a research result.
+Đây là bước nặng và có thể mất nhiều phút. Để cửa sổ PowerShell mở. Khi kết thúc, lệnh in ra thư mục run có tên dạng `20260929T235303Z_ca7d0c1`. Dùng đúng tên được in trên máy của bạn trong hai lệnh tiếp theo:
 
-## Validated data status
+```powershell
+python scripts\run_production.py validate --run-id 20260929T235303Z_ca7d0c1
+python scripts\run_production.py publish --run-id 20260929T235303Z_ca7d0c1 --confirm-publish
+```
 
-The current local generated datasets validate to:
+Thay `20260929T235303Z_ca7d0c1` bằng tên run vừa được tạo. Chỉ publish nếu validate báo `VALIDATED`. Sau publish, kết quả mới đã sẵn sàng cho dashboard.
 
-| Measure | Value |
-|---|---:|
-| Origination rows | 512,500 |
-| Performance rows | 20,097,384 |
-| Event-map loans | 512,489 |
-| Explicit event-date exclusions | 1 |
-| Survival-eligible loans | 504,405 |
-| Excluded before first observed performance | 8,084 |
-| Model rows | 504,405 |
-| Complete core cases | 499,393 (99.01%) |
-| Eligible defaults | 16,556 |
-| Eligible prepayments | 206,175 |
-| Eligible censors | 281,674 |
+## 8. Mở dashboard
 
-One 2025 loan with a termination code but no valid effective date is excluded
-from the event map and recorded in `reports/event_missing_date_2025.csv`.
-The 2026 model dataset contains 5,123 eligible rows, 6 prepayments, 5,117
-censors, and no defaults. This is expected for a partial vintage with short
-follow-up.
-
-## Dashboard
-
-The Streamlit dashboard reads the currently published, integrity-checked
-release through `src/results/dashboard.py`; loan profile and monthly history
-come from the generated local Parquet files. Start it from the project root:
+Chạy:
 
 ```powershell
 python -m streamlit run app/app.py
 ```
 
-The current release provides portfolio-level PD, eligible vintage PD, KM and
-Aalen–Johansen curves, Cox/Fine–Gray/cause-specific coefficients, diagnostics,
-loan-level monthly history, and separate Aalen–Johansen CIF estimates grouped
-by FICO, original LTV, and original DTI. Missing inputs are retained as
-separate groups; horizons without observed support remain unavailable rather
-than being extrapolated. Legacy `query/` exports remain a fallback for older
-runs.
+Trình duyệt thường tự mở. Nếu không, mở trình duyệt và vào [http://localhost:8501](http://localhost:8501). Dashboard có các trang Tổng quan, Rủi ro danh mục, Yếu tố rủi ro, Tra cứu khoản vay và Kết quả mô hình.
 
-## Tests and validation
-
-Run the event regression suite:
+Khi dùng xong, quay lại PowerShell và nhấn **Ctrl+C** để tắt dashboard. Lần sau chỉ cần mở lại PowerShell tại thư mục dự án, bật môi trường và chạy dashboard:
 
 ```powershell
-python -m unittest tests.test_event_definition -v
+cd mortgage-risk-survival-analysis
+.\.venv\Scripts\Activate.ps1
+python -m streamlit run app/app.py
 ```
 
-Compile the three locked data modules:
+## Lỗi thường gặp
 
-```powershell
-python -m py_compile src\data\event_definition.py
-python -m py_compile src\data\survival_duration.py
-python -m py_compile src\data\model_dataset.py
-```
+| Thông báo | Cách xử lý |
+|---|---|
+| `No module named streamlit` | Mở PowerShell tại thư mục dự án, bật `.venv`, rồi chạy `python -m pip install -r requirements.txt`. |
+| `git is not recognized` | Cài Git for Windows, đóng PowerShell, mở lại rồi thử lệnh tải dự án. |
+| `py is not recognized` hoặc `No suitable Python runtime found` | Cài Python 3.12 bản 64-bit, chọn **Add Python to PATH**, rồi mở PowerShell mới. |
+| `Rscript is unavailable` | Cài R 4.6.1 hoặc dùng đường dẫn đầy đủ tới `Rscript.exe` trong các lệnh production. |
+| `sample_20XX.zip` bị thiếu | Đặt đúng ZIP vào `src/data/` và kiểm tra chính tả tên file. Cần đủ năm 2016–2026. |
+| Preflight báo sai số dòng hoặc sai phiên bản dữ liệu | Dữ liệu tải về không khớp bản nghiên cứu đã khóa. Dừng lại và hỏi người quản lý dự án; không bỏ qua kiểm định. |
+| Trình duyệt không mở dashboard | Để cửa sổ PowerShell chạy, rồi tự mở `http://localhost:8501`. |
 
-Run full raw/clean validation when the local datasets are present:
+## Dữ liệu nào không nằm trên GitHub?
 
-```powershell
-python -X utf8 scripts\final_data_validation.py
-```
+Các file ZIP Freddie Mac, dữ liệu trung gian `.parquet`, môi trường `.venv` và một số kết quả lớn được loại khỏi Git để tránh chia sẻ nhầm dữ liệu hoặc đẩy file rất lớn lên kho mã nguồn. Không xóa các thư mục dữ liệu nếu chưa có bản sao. Nếu nhóm đã có bộ dữ liệu/kết quả hợp lệ, có thể xin nhóm cung cấp theo kênh được phép thay vì chạy lại toàn bộ từ đầu.
 
-Compact CSV evidence is stored under `outputs/tables/`; human-readable reports
-are stored under `reports/`.
+## Liên kết chính thức
 
-## Repository map
+- [Freddie Mac Single-Family Loan-Level Dataset](https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset)
+- [Python cho Windows](https://www.python.org/downloads/windows/)
+- [R cho Windows (CRAN)](https://cran.r-project.org/bin/windows/base/)
+- [Git for Windows](https://git-scm.com/install/windows)
+- [Visual Studio Code](https://code.visualstudio.com/Download)
 
-```text
-src/               reusable ingestion, cleaning, validation, and data logic
-scripts/           reproducible runners and audit tools
-tests/             unit tests
-data/              local source and generated datasets (Git-ignored)
-outputs/tables/    compact validation and audit outputs
-outputs/figures/   generated figures
-outputs/logs/      generated logs
-reports/           human-readable validation and cleanup reports
-archive/           local review area (Git-ignored)
-```
-
-The cleanup decisions and unresolved Git-metadata issue are documented in
-`reports/cleanup_manifest.md`.
