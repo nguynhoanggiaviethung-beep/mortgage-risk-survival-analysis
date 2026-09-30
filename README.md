@@ -1,5 +1,7 @@
 # Mortgage Default & Prepayment Survival Analysis
 
+**Chưa quen công nghệ?** Làm theo từng bước trong [Hướng dẫn cài đặt cho người mới](README_NGUOI_MOI.md) để cài trên Windows, lấy dữ liệu, chạy mô hình và mở dashboard.
+
 This project prepares Freddie Mac Single-Family Loan-Level Dataset (SFLLD)
 sample vintages for survival analysis of mortgage default and prepayment. The
 current data-preparation pipeline covers 2016-2026; 2026 is a partial vintage.
