@@ -35,6 +35,7 @@ METRICS = {
     "Default CIF": "cif_default",
     "Voluntary Prepayment CIF": "cif_prepayment",
 }
+MIN_AT_RISK_FOR_RANKING = 100
 
 
 # ---------------------------------------------------------------- helpers ----
@@ -111,7 +112,7 @@ def _render_intro() -> None:
             <b>đã vỡ nợ</b> trong vòng <i>t</i> tháng kể từ origination, có tính đến việc khoản vay
             cũng có thể bị <b>tất toán sớm (Voluntary Prepayment)</b> trước khi vỡ nợ.
             Đây chính là <b>PD(t)</b> của dự án. Trang hiển thị PD theo vintage và các mốc theo dõi
-            có đủ dữ liệu; kết quả nhóm FICO/LTV/DTI sẽ chỉ xuất hiện khi backend có bảng ước lượng riêng.
+            có đủ dữ liệu; các đường CIF theo FICO, LTV và DTI được ước lượng riêng cho từng nhóm.
           </div>
         </div>
         """,
@@ -195,7 +196,22 @@ def render() -> None:
         return
 
     sub = sub.groupby("group_value", as_index=False).agg(agg)
+    if "follow_up_flag" in sub.columns and _not_enough(sub["follow_up_flag"]):
+        st.warning(
+            f"Một số nhóm chưa có đủ quan sát còn theo dõi tại horizon {horizon}M; "
+            "các nhóm đó được giữ là chưa có ước lượng, không ngoại suy CIF."
+        )
+        sub = sub[sub["follow_up_flag"].astype(bool)].copy()
+    if sub.empty or sub[metric].dropna().empty:
+        st.info(f"Không nhóm nào có đủ dữ liệu quan sát để ước lượng tại horizon {horizon}M.")
+        _render_vintage_section(None)
+        return
     sub = sub.sort_values("group_value", key=lambda s: s.map(_band_key)).reset_index(drop=True)
+    if "number_at_risk" in sub and (sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING).any():
+        st.warning(
+            f"Nhóm có dưới {MIN_AT_RISK_FOR_RANKING} khoản vay còn at risk vẫn được hiển thị, "
+            "nhưng không dùng để xếp hạng vì ước lượng ở nhóm nhỏ dễ biến động."
+        )
 
     base_val = None
     if not baseline_df.empty and metric in baseline_df.columns:
@@ -203,16 +219,18 @@ def render() -> None:
         base_val = float(b.mean()) if not b.empty else None
     sub["ratio"] = sub[metric] / base_val if base_val else float("nan")
 
-    if "follow_up_flag" in sub.columns and _not_enough(sub["follow_up_flag"]):
-        st.warning(
-            f"Một số nhóm chưa đủ follow-up tại horizon {horizon}M — "
-            "kết quả chỉ mang tính tham khảo (theo quy tắc horizon trong specification)."
-        )
-
     # ---- KPI tóm tắt ---------------------------------------------------------------
     section_title(f"Tóm tắt · {dim_label} · {metric_label} {horizon}M")
-    hi = sub.loc[sub[metric].idxmax()]
-    lo = sub.loc[sub[metric].idxmin()]
+    ranked = sub[~sub["group_value"].astype(str).str.casefold().isin({"missing", "unknown"})]
+    if "number_at_risk" in ranked:
+        adequately_supported = ranked[ranked["number_at_risk"] >= MIN_AT_RISK_FOR_RANKING]
+        if not adequately_supported.empty:
+            ranked = adequately_supported
+    ranked = ranked[ranked[metric].notna()]
+    if ranked.empty:
+        ranked = sub[sub[metric].notna()]
+    hi = ranked.loc[ranked[metric].idxmax()]
+    lo = ranked.loc[ranked[metric].idxmin()]
     spread = (hi[metric] / lo[metric]) if lo[metric] and lo[metric] > 0 else None
     kpi_row([
         {"label": f"Baseline danh mục ({horizon}M)", "value": _pct(base_val),
@@ -281,6 +299,9 @@ def render() -> None:
     rows = []
     for label, gkey in dim_map.items():
         d = data[(data["group"] == gkey) & (data["horizon"] == horizon)]
+        d = d[~d["group_value"].astype(str).str.casefold().isin({"missing", "unknown"})]
+        if "number_at_risk" in d:
+            d = d[d["number_at_risk"] >= MIN_AT_RISK_FOR_RANKING]
         d = d.groupby("group_value")[metric].mean()
         if len(d) >= 2 and d.min() > 0:
             rows.append((label, d.max() / d.min(), d.idxmax(), d.idxmin()))
@@ -312,6 +333,10 @@ def render() -> None:
     if "follow_up_flag" in sub.columns:
         table["Follow-up"] = sub["follow_up_flag"].astype(str).str.lower().map(
             lambda s: "Chưa đủ" if s in ("false", "0", "no") else "Đủ")
+    if "number_at_risk" in sub.columns:
+        table.loc[sub["number_at_risk"] < MIN_AT_RISK_FOR_RANKING, "Follow-up"] = "Mẫu at risk nhỏ"
+    if sub["group_value"].astype(str).str.casefold().isin({"missing", "unknown"}).any():
+        st.caption("Nhóm thiếu dữ liệu vẫn được hiển thị riêng; không đưa nhóm này vào xếp hạng rủi ro.")
 
     col_cfg = {
         "Default CIF (%)": st.column_config.ProgressColumn(

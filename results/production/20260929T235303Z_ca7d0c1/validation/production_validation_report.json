@@ -1,0 +1,257 @@
+{
+  "checks": [
+    {
+      "name": "production_environment",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact_inventory",
+      "status": "PASS"
+    },
+    {
+      "name": "no_mock_artifacts",
+      "status": "PASS"
+    },
+    {
+      "name": "path:km_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:km_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:km_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:ph_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:ph_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:ph_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:ph_global_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:ph_global_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:ph_global_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:time_varying_cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:time_varying_cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:time_varying_cox_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:time_varying_cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:time_varying_cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:time_varying_cox_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cause_specific_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cause_specific_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cause_specific_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cause_specific_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cause_specific_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cause_specific_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cause_specific_prepayment_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cause_specific_prepayment_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cause_specific_prepayment_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:cause_specific_prepayment_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:cause_specific_prepayment_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:cause_specific_prepayment_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:aalen_johansen_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:aalen_johansen_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:aalen_johansen_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:fine_gray_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:fine_gray_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:fine_gray_default_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:fine_gray_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:fine_gray_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:fine_gray_default_diagnostics",
+      "status": "PASS"
+    },
+    {
+      "name": "path:overall_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:overall_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:overall_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "path:vintage_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:vintage_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:vintage_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:vintage_horizon_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:vintage_horizon_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:vintage_horizon_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:grouped_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:grouped_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:grouped_cif_results",
+      "status": "PASS"
+    },
+    {
+      "name": "path:grouped_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "schema_and_semantics:grouped_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "row_count:grouped_pd_horizons",
+      "status": "PASS"
+    },
+    {
+      "name": "input_provenance",
+      "status": "PASS"
+    },
+    {
+      "name": "cross_artifact_count_reconciliation",
+      "status": "PASS"
+    }
+  ],
+  "code_commit": "ca7d0c170cc6a7943b540d1a66d5307b9790caec",
+  "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+  "overall_status": "PASS",
+  "run_id": "20260929T235303Z_ca7d0c1",
+  "validated_at_utc": "2026-09-30T00:12:08Z"
+}

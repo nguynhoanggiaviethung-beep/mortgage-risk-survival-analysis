@@ -18,6 +18,9 @@ from src.competing_risks.fine_gray import (
     validate_fine_gray_diagnostics,
     validate_fine_gray_results,
 )
+from src.competing_risks.grouped_pd import (
+    _validate_grouped_pd,
+)
 from src.competing_risks.pd_vintage import (
     validate_overall_pd_results,
     validate_vintage_cif_results,
@@ -80,6 +83,8 @@ def _validator_map() -> dict[str, Callable[[pl.DataFrame], pl.DataFrame]]:
         "overall_pd_horizons": validate_overall_pd_results,
         "vintage_cif_results": validate_vintage_cif_results,
         "vintage_horizon_results": validate_vintage_horizon_results,
+        "grouped_cif_results": validate_aalen_johansen_results,
+        "grouped_pd_horizons": _validate_grouped_pd,
     }
 
 
@@ -127,6 +132,21 @@ def _check_counts(tables: dict[str, pl.DataFrame]) -> None:
         != [analytical["PREPAYMENT"]]
     ):
         raise ProductionValidationError("Overall PD counts do not reconcile.")
+
+    grouped = tables["grouped_pd_horizons"]
+    for feature in ("fico_band", "ltv_band", "dti_band"):
+        subset = grouped.filter(pl.col("feature") == feature)
+        if subset.group_by("horizon_months").agg(
+            pl.col("loan_count").sum().alias("n")
+        ).filter(pl.col("n") != expected_analysis).height:
+            raise ProductionValidationError(
+                f"Grouped {feature} loan counts do not reconcile."
+            )
+        for column, key in (("default_count", "DEFAULT"), ("prepayment_count", "PREPAYMENT")):
+            if subset.group_by("horizon_months").agg(pl.col(column).sum().alias("n")).filter(
+                pl.col("n") != analytical[key]
+            ).height:
+                raise ProductionValidationError(f"Grouped {feature} {key} counts do not reconcile.")
 
 
 def _validate_provenance(path: Path) -> dict[str, object]:

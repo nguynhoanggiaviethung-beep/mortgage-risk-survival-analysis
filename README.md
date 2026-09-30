@@ -182,10 +182,11 @@ python -m streamlit run app/app.py
 
 The current release provides portfolio-level PD, eligible vintage PD, KM and
 Aalen–Johansen curves, Cox/Fine–Gray/cause-specific coefficients, diagnostics,
-and loan-level monthly history. It does not yet contain CIF estimates grouped
-by FICO, LTV, or DTI, so the dashboard reports that limitation instead of
-showing fabricated group comparisons. Legacy `query/` exports remain a
-fallback for older runs.
+loan-level monthly history, and separate Aalen–Johansen CIF estimates grouped
+by FICO, original LTV, and original DTI. Missing inputs are retained as
+separate groups; horizons without observed support remain unavailable rather
+than being extrapolated. Legacy `query/` exports remain a fallback for older
+runs.
 
 ## Tests and validation
 

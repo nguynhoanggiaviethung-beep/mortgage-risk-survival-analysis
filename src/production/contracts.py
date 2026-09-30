@@ -79,6 +79,8 @@ ANALYTICAL_ARTIFACTS: tuple[str, ...] = (
     "overall_pd_horizons",
     "vintage_cif_results",
     "vintage_horizon_results",
+    "grouped_cif_results",
+    "grouped_pd_horizons",
 )
 
 INPUT_PROVENANCE_ARTIFACT = "input_provenance"
@@ -107,6 +109,8 @@ ARTIFACT_FILES: dict[str, str] = {
     "overall_pd_horizons": "derived/overall_pd_horizons.parquet",
     "vintage_cif_results": "models/vintage_cif_results.parquet",
     "vintage_horizon_results": "derived/vintage_horizon_results.parquet",
+    "grouped_cif_results": "models/grouped_cif_results.parquet",
+    "grouped_pd_horizons": "derived/grouped_pd_horizons.parquet",
     INPUT_PROVENANCE_ARTIFACT: "provenance/input_provenance.json",
     VALIDATION_REPORT_ARTIFACT: "validation/production_validation_report.json",
 }
@@ -144,6 +148,8 @@ PRODUCERS: dict[str, str] = {
     "overall_pd_horizons": "pd_horizons",
     "vintage_cif_results": "vintage_analysis",
     "vintage_horizon_results": "vintage_analysis",
+    "grouped_cif_results": "grouped_pd",
+    "grouped_pd_horizons": "grouped_pd",
     INPUT_PROVENANCE_ARTIFACT: "production_preflight",
     VALIDATION_REPORT_ARTIFACT: "production_validation",
 }
