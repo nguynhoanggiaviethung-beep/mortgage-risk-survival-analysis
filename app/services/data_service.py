@@ -12,6 +12,7 @@ import streamlit as st
 from src.results.dashboard import (
     model_diagnostics,
     pd_results,
+    grouped_pd_results,
     portfolio_summary,
     resolve_dashboard_release,
     risk_driver_results,
@@ -140,9 +141,17 @@ def get_pd_results(group=None, group_value=None) -> pd.DataFrame:
         df["vintage"] = "All"
         df["number_at_risk"] = df["n_at_risk"]
         df["follow_up_flag"] = df["follow_up_eligible"]
+        grouped = _to_pandas(grouped_pd_results(release)).rename(
+            columns={"feature": "group", "horizon_months": "horizon", "default_cif": "cif_default", "prepayment_cif": "cif_prepayment", "n_at_risk": "number_at_risk"}
+        )
+        grouped["vintage"] = "All"
+        grouped["follow_up_flag"] = grouped["follow_up_eligible"]
+        df = pd.concat([df, grouped], ignore_index=True, sort=False)
     if df.empty:
         return df
     if group:
+        if group == "credit_score_band":
+            group = "fico_band"
         if group in df.columns:
             if group_value is not None:
                 df = df[df[group].astype(str) == str(group_value)]
