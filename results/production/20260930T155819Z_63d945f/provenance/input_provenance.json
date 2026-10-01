@@ -1,0 +1,53 @@
+{
+  "created_at_utc": "2026-09-30T15:58:18.305202Z",
+  "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+  "inputs": [
+    {
+      "byte_size": 10662347,
+      "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+      "mismatches": {},
+      "purpose": "canonical analytical loan-level population",
+      "reconciliation": {
+        "CENSOR": 281674,
+        "DEFAULT": 16556,
+        "PREPAYMENT": 206175,
+        "delayed_entry": 34347
+      },
+      "relative_path": "data/model/analysis_loans_2016_2026.parquet",
+      "role": "analysis_loans",
+      "row_count": 504405,
+      "sha256": "b6bfdb4e4374500e21cc336abc9207ee900677af3dbb0d6290ba7a070ab9d5c6",
+      "status": "PASS"
+    },
+    {
+      "byte_size": 10494399,
+      "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+      "mismatches": {},
+      "purpose": "canonical complete-case static-model population",
+      "reconciliation": {
+        "CENSOR": 279817,
+        "DEFAULT": 16107,
+        "PREPAYMENT": 203469,
+        "delayed_entry": 33757
+      },
+      "relative_path": "data/model/baseline_complete_cases_2016_2026.parquet",
+      "role": "complete_cases",
+      "row_count": 499393,
+      "sha256": "f4f8578a29e41103adf2a2de904ef4f40b3bd1d3a109f0ff50bf53fa21955905",
+      "status": "PASS"
+    },
+    {
+      "byte_size": 206913126,
+      "data_version": "freddie_sample_2016_2026_cutoff_202603_v2",
+      "mismatches": {},
+      "purpose": "canonical monthly performance source for time-varying Cox",
+      "reconciliation": {},
+      "relative_path": "data/processed/performance.parquet",
+      "role": "performance",
+      "row_count": 20097384,
+      "sha256": "2df5a64b22455bb79dd3920b0120a8b8cfb1c847ddb89a3597de61f9060b8af1",
+      "status": "PASS"
+    }
+  ],
+  "overall_status": "PASS"
+}

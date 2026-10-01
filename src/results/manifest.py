@@ -468,11 +468,11 @@ def publish_run(
         "manifest_relative_path": manifest_path.relative_to(root).as_posix(),
         "published_at_utc": _utc_iso(publication_time),
     }
+
     previous_pointer: dict[str, Any] | None = None
     if pointer_path.exists():
-        previous = load_current_run(pointer_path, repository_root=root)
         previous_pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
-        if previous.run_id == published.run_id:
+        if previous_pointer.get("run_id") == published.run_id:
             raise ResultManifestError("Run is already current production.")
 
     write_run_manifest(published, manifest_path)
