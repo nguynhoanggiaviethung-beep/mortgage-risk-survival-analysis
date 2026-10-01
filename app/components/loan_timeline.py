@@ -71,7 +71,7 @@ def loan_timeline_chart(df_timeline: pd.DataFrame, loan_age: int = None) -> go.F
     if last_event == "DEFAULT":
         color, symbol, label = "#EF4444", "x", "Event (Default)"
     elif last_event == "VOLUNTARY_PREPAYMENT":
-        color, symbol, label = "#F59E0B", "diamond", "Censoring (Prepayment)"
+        color, symbol, label = "#F59E0B", "diamond", "ZBC 01 (trả trước/đáo hạn, gộp)"
     else:
         color, symbol, label = "#10B981", "circle", f"Current (Tháng {max_month})"
 

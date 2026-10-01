@@ -72,7 +72,11 @@ def _eligible_mask(frame: pd.DataFrame) -> pd.Series:
     return value.astype(str).str.strip().str.lower().isin(_ELIGIBLE_TOKENS)
 
 
-def _main_horizon_rows(cif: pd.DataFrame, km: pd.DataFrame | None = None) -> pd.DataFrame:
+def _main_horizon_rows(
+    cif: pd.DataFrame,
+    km: pd.DataFrame | None = None,
+    aj: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     if cif.empty or not {"horizon", "cif_default"}.issubset(cif.columns):
         return pd.DataFrame()
     eligible = cif.loc[_eligible_mask(cif)].copy()
@@ -83,7 +87,19 @@ def _main_horizon_rows(cif: pd.DataFrame, km: pd.DataFrame | None = None) -> pd.
     keep = eligible[eligible["horizon"].isin(_MAIN_HORIZONS)]
     if max_km_time is not None and pd.notna(max_km_time):
         keep = keep[keep["horizon"] <= max_km_time]
-    return keep.sort_values("horizon").drop_duplicates("horizon")
+    keep = keep.sort_values("horizon").drop_duplicates("horizon")
+    # The dashboard's plotted competing-risk curves and reported CIs come from
+    # the Aalen–Johansen output. Use that same source for point estimates so a
+    # stale/misaligned pd_results row cannot disagree with the chart or CI.
+    if aj is not None and not aj.empty:
+        points = []
+        for horizon in keep["horizon"].astype(int):
+            point = _curve_at(aj, "DEFAULT", horizon)
+            if point and pd.notna(point.get("value")):
+                points.append({"horizon": horizon, "cif_default": float(point["value"])})
+        if points:
+            keep = pd.DataFrame(points)
+    return keep
 
 
 def _portfolio_cif() -> pd.DataFrame:
@@ -150,7 +166,7 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
     section_heading(
         1,
         "Vỡ nợ tăng như thế nào theo thời gian?",
-        "Default CIF / PD(t) ước lượng xác suất vỡ nợ tích lũy và tính đến trả trước hạn như sự kiện cạnh tranh.",
+        "Default CIF / PD(t) ước lượng xác suất vỡ nợ tích lũy; ZBC 01 (trả trước/đáo hạn gộp) là sự kiện cạnh tranh.",
     )
     cif = _portfolio_cif()
     km = _portfolio_km()
@@ -159,7 +175,7 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
         st.info("Chưa có kết quả xác suất vỡ nợ (pd_results) đã công bố.")
         return cif, km
 
-    horizons = _main_horizon_rows(cif)
+    horizons = _main_horizon_rows(cif, aj=aj)
     if horizons.empty:
         st.info("Chưa có mốc 12/24/36/60 tháng đủ thời gian theo dõi để báo cáo.")
     else:
@@ -186,23 +202,25 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
     return cif, km
 
 
-def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> None:
+def _render_competing_risk_comparison(
+    cif: pd.DataFrame, km: pd.DataFrame, aj: pd.DataFrame
+) -> None:
     section_heading(
         2,
         "Tại sao không dùng 1 − KM?",
-        "So sánh ước lượng Kaplan–Meier với Default CIF khi trả trước hạn là sự kiện cạnh tranh.",
+        "So sánh Kaplan–Meier với Default CIF khi ZBC 01 (trả trước/đáo hạn gộp) là sự kiện cạnh tranh.",
     )
-    if cif.empty or km.empty:
-        st.info("Cần cả survival_results và pd_results để so sánh.")
+    if cif.empty or km.empty or aj.empty:
+        st.info("Cần cả kết quả PD, Kaplan–Meier và Aalen–Johansen để so sánh.")
         return
-    horizons = _main_horizon_rows(cif, km)
+    horizons = _main_horizon_rows(cif, km, aj)
     if horizons.empty:
         st.info("Chưa có mốc chính đủ thời gian theo dõi để so sánh, không ngoại suy kết quả.")
         return
 
     last_horizon = int(horizons["horizon"].max())
     km_display = km[pd.to_numeric(km["analysis_time"], errors="coerce") <= last_horizon].copy()
-    cif_display = _portfolio_aj()
+    cif_display = aj
     cif_display = cif_display[
         (cif_display["endpoint"].astype(str).str.upper() == "DEFAULT")
         & (pd.to_numeric(cif_display["analysis_time"], errors="coerce") <= last_horizon)
@@ -220,7 +238,10 @@ def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> No
         if km_at_horizon.empty:
             continue
         naive = 1 - float(km_at_horizon["survival"].iloc[-1])
-        cif_value = float(row["cif_default"])
+        point = _curve_at(aj, "DEFAULT", horizon)
+        if not point or pd.isna(point.get("value")):
+            continue
+        cif_value = float(point["value"])
         rows.append({
             "Mốc theo dõi": f"{horizon} tháng",
             "1 − KM": _format_probability(naive),
@@ -230,8 +251,8 @@ def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> No
     if rows:
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     callout(
-        "1 − KM xem khoản trả trước hạn như bị kiểm duyệt và có thể đánh giá cao xác suất vỡ nợ. "
-        "Default CIF tính trả trước hạn là một kết cục cạnh tranh, nên phù hợp hơn để mô tả xác suất "
+        "1 − KM xem ZBC 01 như bị kiểm duyệt và có thể đánh giá cao xác suất vỡ nợ. "
+        "Default CIF tính ZBC 01 là kết cục cạnh tranh, nên phù hợp hơn để mô tả xác suất "
         "vỡ nợ tích lũy trong bài toán này."
     )
 
@@ -381,9 +402,9 @@ def _render_methodology() -> None:
             "- **Mốc thời gian:** origination month được vận hành bằng First Payment Date trừ một tháng; "
             "tháng thanh toán đầu tiên tương ứng tháng phân tích 1.\n"
             "- **Default:** 90+ DPD, mã RA hoặc Zero Balance Code 02/03/09.\n"
-            "- **Voluntary Prepayment:** Zero Balance Code 01 theo quy ước event của project. Freddie Mac gộp prepaid/matured trong mã nguồn này, nên project không tách riêng maturity.\n"
+            "- **ZBC 01:** mã nguồn gộp trả trước và đáo hạn (prepaid or matured); dữ liệu dự án không tách riêng hai trường hợp, vì vậy không diễn giải là voluntary prepayment thuần túy.\n"
             "- **Censoring termination:** Zero Balance Code 15/16/96; kết thúc quan sát mà chưa ghi nhận Default hoặc mã 01.\n"
-            "- **Thứ tự sự kiện:** chọn sự kiện sớm nhất; nếu vỡ nợ và trả trước hạn cùng tháng, vỡ nợ được ưu tiên.\n"
+            "- **Thứ tự sự kiện:** chọn sự kiện sớm nhất; nếu Default và ZBC 01 cùng tháng, Default được ưu tiên.\n"
             "- **Phạm vi:** vintage 2016–2026; dữ liệu performance đến 31/03/2026. Các mô hình dùng cohort "
             "complete-case theo biến đầu vào tương ứng.\n\n"
             "Default CIF mô tả xác suất vỡ nợ tích lũy khi có rủi ro cạnh tranh; đây không phải tổn thất tín dụng "
@@ -396,10 +417,10 @@ def render() -> None:
     page_kicker(4, "Kết quả mô hình")
     callout(
         "Trang này dẫn từ xác suất vỡ nợ theo thời gian đến cách mô hình hóa yếu tố liên quan, "
-        "đồng thời giải thích vai trò của trả trước hạn như một rủi ro cạnh tranh."
+            "đồng thời giải thích vai trò của ZBC 01 (trả trước/đáo hạn gộp) như một kết cục cạnh tranh."
     )
     cif, km = _render_default_cif()
-    _render_competing_risk_comparison(cif, km)
+    _render_competing_risk_comparison(cif, km, _portfolio_aj())
     factor_model = _render_factor_analysis()
     _render_diagnostics(factor_model)
     _render_methodology()

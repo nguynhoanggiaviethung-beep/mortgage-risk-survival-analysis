@@ -19,7 +19,7 @@ from app.components.page_blocks import (
 from app.services import data_service as ds
 
 FEATURES = ["fico", "original_ltv", "original_dti", "original_interest_rate", "original_loan_term"]
-LABELS = {0: "Quá hạn lần đầu từ 30 ngày (30+ DPD)", 1: "Trả trước hạn (ZBC 01)", 2: "Chưa ghi nhận hai sự kiện trong horizon"}
+LABELS = {0: "Quá hạn lần đầu từ 30 ngày (30+ DPD)", 1: "ZBC 01 · trả trước/đáo hạn (gộp)", 2: "Chưa ghi nhận hai sự kiện trong horizon"}
 OUTCOME_ORDER = [0, 1, 2]
 
 
@@ -129,7 +129,7 @@ def render() -> None:
     st.caption("MÔ PHỎNG · RỦI RO QUÁ HẠN 30+ DPD")
     callout(
         "Quy ước riêng của mô phỏng: sự kiện trễ hạn là lần đầu ghi nhận delinquency_num ≥ 1 (từ 30 ngày quá hạn); "
-        "ZBC 01 là sự kiện trả trước cạnh tranh; ZBC 15/16/96 và kết thúc dữ liệu là kiểm duyệt. "
+        "ZBC 01 (trả trước hoặc đáo hạn gộp) là sự kiện cạnh tranh; ZBC 15/16/96 và kết thúc dữ liệu là kiểm duyệt. "
         "Nếu trễ 30+ và ZBC 01 cùng tháng, trễ 30+ được ưu tiên. Khoản bị kiểm duyệt trước horizon bị loại khỏi nhãn “chưa ghi nhận sự kiện”. "
         "Định nghĩa này khác với Default 90+ DPD/RA dùng trong nghiên cứu chính."
     )
@@ -196,4 +196,3 @@ def render() -> None:
             "“Chưa ghi nhận sự kiện” chỉ có nghĩa là không có 30+ DPD hoặc ZBC 01 quan sát được đến horizon; "
             "không khẳng định người vay luôn thanh toán đúng hạn. Mô hình không thay thế kết quả survival/competing-risk 90+ DPD."
         )
-

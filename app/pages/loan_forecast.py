@@ -1,4 +1,4 @@
-"""Dự báo CIF cá nhân cho Default và trả trước hạn trên hồ sơ khoản vay mới."""
+"""Dự báo CIF hồ sơ mới cho Default và kết cục ZBC 01 gộp."""
 
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
     section_heading(
         2,
         "Kết quả dự báo",
-        "Xác suất tích lũy đến mốc thời gian, có tính việc trả trước làm sự kiện cạnh tranh với vỡ nợ.",
+        "Xác suất tích lũy đến mốc thời gian; ZBC 01 (trả trước/đáo hạn gộp) là sự kiện cạnh tranh với vỡ nợ.",
     )
     if not profile:
         st.info("Nhập đủ 5 đặc điểm bên trái rồi chọn **Tính dự báo** để xem kết quả.")
@@ -156,7 +156,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
             stat_card(
                 f"Default CIF · {horizon} tháng",
                 f"{float(estimate['default_cif'][0]):.2%}",
-                "Xác suất tích lũy vỡ nợ, có tính trả trước cạnh tranh",
+                "Xác suất tích lũy vỡ nợ, có tính ZBC 01 cạnh tranh",
                 color,
                 tint,
             )
@@ -165,7 +165,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
     figure = go.Figure()
     series = [
         ("Xác suất vỡ nợ tích lũy", curves["default_cif"] * 100, RED),
-        ("Xác suất trả trước tích lũy (ZBC 01)", curves["prepay_cif"] * 100, GREEN),
+        ("Xác suất kết thúc bằng ZBC 01 (trả trước/đáo hạn gộp)", curves["prepay_cif"] * 100, GREEN),
         ("Chưa gặp hai sự kiện", curves["survival"] * 100, NAVY),
     ]
     for label, values, color in series:
@@ -190,7 +190,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
     figure.update_yaxes(title="Xác suất tích lũy (%)", range=[0, 100], ticksuffix="%", gridcolor="#E8E4D9")
     st.plotly_chart(figure, width="stretch")
     st.caption(
-        "Tại mỗi mốc: Default CIF + trả trước CIF + xác suất chưa gặp hai sự kiện = 100%. "
+        "Tại mỗi mốc: Default CIF + CIF ZBC 01 (trả trước/đáo hạn gộp) + xác suất chưa gặp hai sự kiện = 100%. "
         "Các mốc hiển thị bị giới hạn bởi kỳ hạn đã nhập và phạm vi mô hình hỗ trợ."
     )
 
@@ -200,7 +200,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
         rows.append({
             "Mốc dự báo": f"{horizon} tháng",
             "Vỡ nợ tích lũy": f"{float(estimate['default_cif'][0]):.2%}",
-            "Trả trước tích lũy": f"{float(estimate['prepay_cif'][0]):.2%}",
+            "ZBC 01 (trả trước/đáo hạn gộp)": f"{float(estimate['prepay_cif'][0]):.2%}",
             "Chưa gặp sự kiện": f"{float(estimate['survival'][0]):.2%}",
         })
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
@@ -213,7 +213,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
             "Horizon (tháng)": "Mốc (tháng)",
             "Số hồ sơ kiểm định": "Số hồ sơ đủ theo dõi",
             "Default quan sát": "Số Default quan sát",
-            "Trả trước quan sát": "Số trả trước quan sát",
+            "Trả trước quan sát": "Số kết cục ZBC 01 quan sát",
             "Brier đa lớp (thấp tốt hơn)": "Brier đa lớp · thấp tốt hơn",
             "Log-loss (thấp tốt hơn)": "Log-loss · thấp tốt hơn",
             "CIF Default dự báo TB": "Default dự báo trung bình",
@@ -241,7 +241,7 @@ def render() -> None:
     page_kicker(6, "Dự báo khoản vay mới")
     callout(
         "Dự báo hai kết cục cạnh tranh cho hồ sơ có đặc điểm ban đầu: Default theo định nghĩa nghiên cứu "
-        "(90+ DPD/RA hoặc ZBC 02/03/09) và trả trước hạn theo ZBC 01. Đây không phải dự báo quá hạn 30+ DPD."
+        "(90+ DPD/RA hoặc ZBC 02/03/09) và kết cục ZBC 01 (trả trước/đáo hạn gộp). Đây không phải dự báo quá hạn 30+ DPD."
     )
     left, right = st.columns([0.92, 1.35], gap="large")
     with left:
@@ -251,7 +251,7 @@ def render() -> None:
         _render_results(profile)
     with st.expander("Cách tính và giới hạn diễn giải", expanded=False):
         st.markdown(
-            "Dự báo sử dụng hai mô hình Cox cause-specific đã khóa cho Default và trả trước. "
+            "Dự báo sử dụng hai mô hình Cox cause-specific đã khóa cho Default và ZBC 01 (trả trước/đáo hạn gộp). "
             "Từ hazard cơ sở và điểm rủi ro của năm biến đầu vào, hệ thống tích lũy CIF theo tháng bằng "
             "xấp xỉ hazard piecewise-exponential; hai CIF cộng với xác suất chưa gặp sự kiện bằng 1. "
             "Mốc hiển thị là 12, 24 và 36 tháng, giới hạn theo kỳ hạn khoản vay. "

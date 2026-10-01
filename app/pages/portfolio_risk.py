@@ -14,6 +14,7 @@ Nội dung trang:
   9. Ghi chú phương pháp
 """
 
+import html
 import math
 import re
 
@@ -38,7 +39,7 @@ COLOR_TEXT_DARK = "#293A32"    # xanh rừng cho chữ
 DIM_ORDER = ["Điểm tín dụng (FICO)", "Tỷ lệ LTV", "Tỷ lệ DTI", "Lãi suất", "Kỳ hạn vay", "Năm giải ngân (Vintage)"]
 METRICS = {
     "Tỷ lệ vỡ nợ tích lũy (Default CIF)": "cif_default",
-    "Tỷ lệ trả trước tích lũy (ZBC 01)": "cif_prepayment",
+    "CIF ZBC 01 (trả trước/đáo hạn, gộp)": "cif_prepayment",
 }
 MIN_AT_RISK_FOR_RANKING = 100
 
@@ -264,6 +265,19 @@ def render() -> None:
         base_val = float(b.iloc[-1]) if not b.empty else None
     sub["ratio"] = sub[metric] / base_val if base_val else float("nan")
 
+    endpoint = "DEFAULT" if is_default else "PREPAYMENT"
+    group_curves = ds.get_aj_curves(endpoint=endpoint, group_name=group_key)
+    ci_low, ci_high, n_risk = [], [], []
+    for _, row in sub.iterrows():
+        curve = group_curves[group_curves["group_value"].astype(str) == str(row["group_value"])] if not group_curves.empty and "group_value" in group_curves.columns else pd.DataFrame()
+        if not curve.empty:
+            curve = curve[pd.to_numeric(curve["analysis_time"], errors="coerce") <= int(horizon)].sort_values("analysis_time")
+        point = curve.iloc[-1] if not curve.empty else None
+        ci_low.append(point.get("ci_lower") if point is not None else None)
+        ci_high.append(point.get("ci_upper") if point is not None else None)
+        n_risk.append(point.get("n_at_risk") if point is not None else row.get("number_at_risk"))
+    sub["_ci_low"], sub["_ci_high"], sub["_curve_at_risk"] = ci_low, ci_high, n_risk
+
     # ---- KPI tóm tắt ---------------------------------------------------------------
     section_title(f"Tóm tắt chỉ số · {dim_label} · {horizon} tháng")
     ranked = sub[~sub["group_value"].isin({"Chưa có dữ liệu"})].copy()
@@ -330,7 +344,7 @@ def render() -> None:
         st.markdown(
             f"""
             <div style="margin-bottom:12px; font-weight:bold; font-size:13px; color:{COLOR_TEXT_DARK};">
-                <span style="color:{COLOR_PREPAYMENT}; font-size:16px;">■</span> Xác suất trả trước tích lũy (ZBC 01)
+                <span style="color:{COLOR_PREPAYMENT}; font-size:16px;">■</span> CIF ZBC 01 (trả trước/đáo hạn, gộp)
             </div>
             """,
             unsafe_allow_html=True,
@@ -340,7 +354,23 @@ def render() -> None:
         x=sub["group_value"], y=sub[metric], marker_color=colors,
         text=[_pct(v) for v in sub[metric]], textposition="outside",
         textfont=dict(color=COLOR_TEXT_DARK, size=12, family=FONT_STACK),
-        hovertemplate="%{x}<br>" + metric_label + ": %{y:.2%}<extra></extra>",
+        error_y=dict(
+            type="data", symmetric=False,
+            array=np.maximum(0, pd.to_numeric(sub["_ci_high"], errors="coerce").to_numpy() - pd.to_numeric(sub[metric], errors="coerce").to_numpy(), where=pd.notna(pd.to_numeric(sub["_ci_high"], errors="coerce").to_numpy()), out=np.zeros(len(sub))),
+            arrayminus=np.maximum(0, pd.to_numeric(sub[metric], errors="coerce").to_numpy() - pd.to_numeric(sub["_ci_low"], errors="coerce").to_numpy(), where=pd.notna(pd.to_numeric(sub["_ci_low"], errors="coerce").to_numpy()), out=np.zeros(len(sub))),
+            visible=bool(sub["_ci_low"].notna().any() or sub["_ci_high"].notna().any()),
+            color=COLOR_TEXT_DARK, thickness=1.5,
+        ),
+        customdata=np.column_stack([
+            pd.to_numeric(sub["_ci_low"], errors="coerce").to_numpy(),
+            pd.to_numeric(sub["_ci_high"], errors="coerce").to_numpy(),
+            pd.to_numeric(sub["_curve_at_risk"], errors="coerce").to_numpy(),
+            pd.to_numeric(sub.get("loan_count", pd.Series(index=sub.index, dtype=float)), errors="coerce").to_numpy(),
+        ]),
+        hovertemplate=("%{x}<br>" + metric_label + ": %{y:.2%}"
+                       + "<br>95% CI: %{customdata[0]:.2%}–%{customdata[1]:.2%}"
+                       + "<br>Còn trong risk set: %{customdata[2]:,.0f}"
+                       + "<br>Số khoản vay ban đầu: %{customdata[3]:,.0f}<extra></extra>"),
     ))
     if base_val:
         fig.add_hline(
@@ -379,6 +409,26 @@ def render() -> None:
         else:
             pivot = pivot.loc[sorted(pivot.index, key=_band_key)]
 
+            heat_custom = []
+            for group_value in pivot.index:
+                group_curve = (
+                    group_curves[group_curves["group_value"].astype(str) == str(group_value)]
+                    if not group_curves.empty and "group_value" in group_curves.columns
+                    else pd.DataFrame()
+                )
+                row_meta = []
+                for horizon_value in pivot.columns:
+                    eligible_curve = group_curve[
+                        pd.to_numeric(group_curve["analysis_time"], errors="coerce") <= int(horizon_value)
+                    ].sort_values("analysis_time") if not group_curve.empty else pd.DataFrame()
+                    point = eligible_curve.iloc[-1] if not eligible_curve.empty else None
+                    row_meta.append([
+                        point.get("ci_lower") if point is not None else None,
+                        point.get("ci_upper") if point is not None else None,
+                        point.get("n_at_risk") if point is not None else None,
+                    ])
+                heat_custom.append(row_meta)
+
             eligible_for_scale = data.copy()
             if "follow_up_flag" in eligible_for_scale.columns:
                 eligible_for_scale = eligible_for_scale[_to_bool_series(eligible_for_scale["follow_up_flag"])]
@@ -395,6 +445,7 @@ def render() -> None:
                     text=[[_pct(v) for v in row] for row in pivot.values],
                     texttemplate="%{text}",
                     textfont=dict(family=FONT_STACK, size=12, color=COLOR_TEXT_DARK),
+                    customdata=heat_custom,
                     colorscale=heat_colorscale,
                     zmin=0,
                     zmax=color_ceiling,
@@ -404,7 +455,9 @@ def render() -> None:
                         tickfont=dict(family=FONT_STACK, color=COLOR_TEXT_DARK),
                         tickformat=".0%",
                     ),
-                    hovertemplate="%{y} · %{x}<br>" + metric_label + ": %{z:.2%}<extra></extra>",
+                    hovertemplate=("%{y} · %{x}<br>" + metric_label + ": %{z:.2%}"
+                                   + "<br>95% CI: %{customdata[0]:.2%}–%{customdata[1]:.2%}"
+                                   + "<br>Còn trong risk set: %{customdata[2]:,.0f}<extra></extra>"),
                 )
             )
             heat.update_yaxes(autorange="reversed")
@@ -464,7 +517,7 @@ def render() -> None:
     if "cif_default" in sub.columns:
         table["Xác suất vỡ nợ tích lũy (%)"] = sub["cif_default"] * 100
     if "cif_prepayment" in sub.columns:
-        table["Xác suất trả trước tích lũy (ZBC 01) (%)"] = sub["cif_prepayment"] * 100
+        table["CIF ZBC 01 (trả trước/đáo hạn, gộp) (%)"] = sub["cif_prepayment"] * 100
     if base_val:
         table["So với trung bình (lần)"] = sub["ratio"]
     if "number_at_risk" in sub.columns:
@@ -485,8 +538,8 @@ def render() -> None:
         col_cfg["Xác suất vỡ nợ tích lũy (%)"] = st.column_config.ProgressColumn(
             "Xác suất vỡ nợ tích lũy (%)", format="%.2f%%", min_value=0, max_value=max_cif
         )
-    if "Xác suất trả trước tích lũy (ZBC 01) (%)" in table.columns:
-        col_cfg["Xác suất trả trước tích lũy (ZBC 01) (%)"] = st.column_config.NumberColumn("Xác suất trả trước tích lũy (ZBC 01) (%)", format="%.2f%%")
+    if "CIF ZBC 01 (trả trước/đáo hạn, gộp) (%)" in table.columns:
+        col_cfg["CIF ZBC 01 (trả trước/đáo hạn, gộp) (%)"] = st.column_config.NumberColumn("CIF ZBC 01 (trả trước/đáo hạn, gộp) (%)", format="%.2f%%")
     if "So với trung bình (lần)" in table.columns:
         col_cfg["So với trung bình (lần)"] = st.column_config.NumberColumn("So với trung bình (lần)", format="%.2f×")
     if "Số khoản vay còn trong diện rủi ro" in table.columns:
@@ -502,13 +555,17 @@ def render() -> None:
     ]
     if spread:
         insights.append(f"Chênh lệch tuyệt đối giữa hai nhóm là **{spread * 100:.2f} điểm phần trăm**.")
+    insights_html = "".join(
+        "<li>" + re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html.escape(text)) + "</li>"
+        for text in insights
+    )
 
     st.markdown(
         f"""
         <div style='background-color:#F6F3E9; border:1px solid #DCD7C8; border-radius:4px; padding:16px; margin-top:10px;'>
             <p style='color:{COLOR_TEXT_DARK}; font-weight:bold; font-size:15px; margin-bottom:8px;'>Nhận xét đánh giá nhanh:</p>
             <ul style='color:{COLOR_TEXT_DARK}; font-size:14px; line-height:1.6; margin-left:-15px;'>
-                {"".join([f"<li>{t}</li>" for t in insights])}
+                {insights_html}
             </ul>
         </div>
         """,
@@ -523,13 +580,13 @@ def render() -> None:
         st.markdown(
             """
     - **Default CIF = PD(t)** của dự án; ước lượng theo khung
-    **rủi ro cạnh tranh**, trong đó *trả trước hạn (ZBC 01)* là sự kiện cạnh tranh.
+    **rủi ro cạnh tranh**, trong đó *ZBC 01 (trả trước/đáo hạn, gộp)* là sự kiện cạnh tranh.
 
     - **Không dùng 1 − Kaplan–Meier** làm xác suất Default tích lũy
     khi tồn tại competing event.
 
     - **Định nghĩa sự kiện:** Default = 90+ DPD, RA hoặc Zero Balance Code 02/03/09.
-    Trả trước hạn theo quy ước nghiên cứu = Zero Balance Code 01; ZBC 15/16/96 = kết thúc theo dõi.
+    ZBC 01 là kết cục gộp trả trước/đáo hạn; ZBC 15/16/96 = kết thúc theo dõi.
     Sự kiện sớm nhất được chọn; nếu vỡ nợ và ZBC 01 cùng tháng, vỡ nợ được ưu tiên.
     Freddie Mac gộp trả trước/đáo hạn trong ZBC 01 nên nghiên cứu không tách riêng đáo hạn.
 
@@ -606,9 +663,9 @@ def _render_vintage_section(selected_horizon) -> None:
         for c in ("loan_count", "n_at_risk", "default_count")
     ])
     fig.add_trace(go.Scatter(
-        x=d["vintage"].astype(str), y=values, mode="lines+markers",
+        x=d["vintage"].astype(str), y=values, mode="markers",
         name=f"Vỡ nợ tích lũy sau {chosen_horizon} tháng",
-        line=dict(color=COLOR_RISK_HIGH, width=2), marker=dict(size=9),
+        marker=dict(size=9, color=COLOR_RISK_HIGH),
         error_y=dict(
             type="data", symmetric=False,
             array=[max(0, hi - val) if hi is not None and pd.notna(val) else 0 for hi, val in zip(highs, values)],
@@ -636,7 +693,7 @@ def _render_vintage_section(selected_horizon) -> None:
             "vintage": "Năm giải ngân",
             "horizon": "Mốc theo dõi (tháng)",
             "default_cif": "Xác suất vỡ nợ tích lũy",
-            "prepayment_cif": "Xác suất trả trước tích lũy",
+            "prepayment_cif": "CIF ZBC 01 (trả trước/đáo hạn gộp)",
             "loan_count": "Số khoản vay",
             "n_at_risk": "Số khoản còn theo dõi",
             "default_count": "Số ca vỡ nợ",

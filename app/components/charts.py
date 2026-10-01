@@ -44,7 +44,7 @@ def survival_curve_chart(df: pd.DataFrame, group_col: str = "group_value") -> go
                 fill="toself", fillcolor=color, opacity=0.12,
                 line=dict(width=0), showlegend=False, hoverinfo="skip",
             ))
-        group_label = {"DEFAULT": "Vỡ nợ", "PREPAYMENT": "Trả trước hạn", "CENSOR": "Kiểm duyệt"}.get(str(g).upper(), str(g)) if g is not None else "Toàn danh mục"
+        group_label = {"DEFAULT": "Vỡ nợ", "PREPAYMENT": "ZBC 01 (trả trước/đáo hạn, gộp)", "CENSOR": "Kiểm duyệt"}.get(str(g).upper(), str(g)) if g is not None else "Toàn danh mục"
         fig.add_trace(go.Scatter(
             x=sub["analysis_time"], y=sub["survival"],
             mode="lines", name=group_label,
@@ -59,7 +59,7 @@ def cif_chart(df: pd.DataFrame) -> go.Figure:
     """Aalen–Johansen step CIF curves with pointwise confidence bands."""
     fig = go.Figure()
     if {"endpoint", "analysis_time", "cumulative_incidence"}.issubset(df.columns):
-        palette = {"DEFAULT": (DANGER, "Xác suất vỡ nợ tích lũy"), "PREPAYMENT": (PRIMARY, "Xác suất trả trước tích lũy (ZBC 01)")}
+        palette = {"DEFAULT": (DANGER, "Xác suất vỡ nợ tích lũy"), "PREPAYMENT": (PRIMARY, "CIF ZBC 01 (trả trước/đáo hạn, gộp)")}
         for endpoint, (color, label) in palette.items():
             d = df[df["endpoint"].astype(str).str.upper() == endpoint].sort_values("analysis_time")
             if d.empty:
@@ -71,13 +71,15 @@ def cif_chart(df: pd.DataFrame) -> go.Figure:
                     x=x_band, y=y_band, fill="toself", fillcolor=color, opacity=0.12,
                     line=dict(width=0), showlegend=False, hoverinfo="skip",
                 ))
-            custom = d[[c for c in ("ci_lower", "ci_upper", "n_at_risk") if c in d.columns]].to_numpy()
+            custom_cols = [c for c in ("ci_lower", "ci_upper", "n_at_risk") if c in d.columns]
+            custom = d[custom_cols].to_numpy()
+            ci_indices = (custom_cols.index("ci_lower"), custom_cols.index("ci_upper")) if {"ci_lower", "ci_upper"}.issubset(custom_cols) else None
             fig.add_trace(go.Scatter(
                 x=d["analysis_time"], y=d["cumulative_incidence"], mode="lines",
                 name=label, line=dict(color=color, width=2.5, shape="hv"), customdata=custom,
                 hovertemplate=("Tháng %{x}<br>Xác suất tích lũy: %{y:.2%}" +
-                    ("<br>Khoảng tin cậy 95%: %{customdata[0]:.2%}–%{customdata[1]:.2%}" if {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
-                    ("<br>Số khoản còn trong diện rủi ro: %{customdata[2]:,}" if "n_at_risk" in d.columns and {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
+                    (f"<br>Khoảng tin cậy 95%: %{{customdata[{ci_indices[0]}]:.2%}}–%{{customdata[{ci_indices[1]}]:.2%}}" if ci_indices else "") +
+                    (f"<br>Số khoản còn trong diện rủi ro: %{{customdata[{custom_cols.index('n_at_risk')}]:,}}" if "n_at_risk" in custom_cols else "") +
                     "<extra></extra>"),
             ))
         fig.update_xaxes(title="Số tháng kể từ mốc khởi tạo nghiên cứu")
@@ -87,7 +89,7 @@ def cif_chart(df: pd.DataFrame) -> go.Figure:
         d = df.sort_values("horizon")
         fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_default"], mode="lines+markers", name="Xác suất vỡ nợ tích lũy", marker_color=DANGER, line_shape="hv"))
         if "cif_prepayment" in d.columns:
-            fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_prepayment"], mode="lines+markers", name="Xác suất trả trước tích lũy (ZBC 01)", marker_color=PRIMARY, line_shape="hv"))
+            fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_prepayment"], mode="lines+markers", name="CIF ZBC 01 (trả trước/đáo hạn, gộp)", marker_color=PRIMARY, line_shape="hv"))
         fig.update_xaxes(title="Mốc thời gian theo dõi (tháng)")
     fig.update_yaxes(title="Xác suất tích lũy", tickformat=".0%", rangemode="tozero")
     return _apply_layout(fig)
@@ -120,6 +122,8 @@ def km_vs_cif_compare_chart(df_km: pd.DataFrame, df_cif: pd.DataFrame) -> go.Fig
     km_hover = "Tháng %{x}<br>Ước tính 1 − KM: %{y:.2%}"
     if km_ci_indices:
         km_hover += f"<br>Khoảng tin cậy 95%: %{{customdata[{km_ci_indices[0]}]:.2%}}–%{{customdata[{km_ci_indices[1]}]:.2%}}"
+    if "n_at_risk" in km_custom_cols:
+        km_hover += f"<br>Số khoản còn trong diện rủi ro: %{{customdata[{km_custom_cols.index('n_at_risk')}]:,}}"
     km_hover += "<extra></extra>"
     fig.add_trace(go.Scatter(
         x=km["analysis_time"], y=1 - km["survival"], mode="lines",

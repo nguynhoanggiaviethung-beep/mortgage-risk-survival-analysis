@@ -26,7 +26,7 @@ HORIZON_OPTIONS = [12, 24, 36, 60]
 
 EVENT_LABELS = {
     "DEFAULT": "Default",
-    "VOLUNTARY_PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
+    "VOLUNTARY_PREPAYMENT": "ZBC 01 (trả trước/đáo hạn, gộp)",
     "CENSORED": "Censored",
 }
 

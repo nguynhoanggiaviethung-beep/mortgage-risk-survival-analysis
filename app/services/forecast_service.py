@@ -131,7 +131,7 @@ def _survival_vector(models: CauseSpecificPairResult, profiles: pd.DataFrame):
         curves[key] = np.vstack(curves[key])
     total_probability = curves["default_cif"] + curves["prepay_cif"] + curves["survival"]
     if not np.isfinite(total_probability).all() or not np.allclose(total_probability, 1.0, atol=1e-8):
-        raise ForecastError("Dự báo không thỏa mãn tổng CIF Default + CIF trả trước + chưa sự kiện = 1.")
+        raise ForecastError("Dự báo không thỏa mãn tổng Default CIF + CIF ZBC 01 (trả trước/đáo hạn gộp) + chưa sự kiện = 1.")
     return curves
 
 

@@ -1,5 +1,16 @@
 # Audit biểu đồ Dashboard — 30/09/2026
 
+## Theo dõi xử lý — 01/10/2026
+
+Đã cập nhật sau audit:
+
+- Trang Tổng quan: so sánh CIF theo các mốc dùng điểm có thanh 95% CI; tooltip và thẻ kết quả nêu số khoản còn trong risk set khi release AJ có trường này. Kaplan–Meier ghi rõ đây là xác suất chưa ghi nhận default khi xem khoản trả trước là kiểm duyệt; phần này có dải CI và số còn theo dõi khi artifact KM cung cấp.
+- Trang Rủi ro danh mục: so sánh nhóm tại horizon đưa CI, số khoản còn trong risk set và quy mô nhóm vào tooltip/bảng. Heatmap cho xem CI và at-risk trong tooltip. Phần vintage chỉ đọc `vintage_horizon_results` và đường AJ theo `vintage_year`, không lấy dữ liệu portfolio gắn nhãn `All` làm đại diện.
+- Trang Kết quả mô hình: CIF hiển thị theo đường bậc AJ có dải tin cậy; biểu đồ 1−KM so với CIF hiển thị CI và số còn theo dõi trong tooltip khi có trường nguồn.
+- Nhãn sự kiện được chuẩn hóa thành “ZBC 01 (trả trước/đáo hạn, gộp)” ở các trang dùng kết quả competing-risk. ZBC 01 trong dữ liệu Freddie Mac không phân biệt payoff trước hạn với đáo hạn.
+
+Giới hạn còn lại: metadata CI/at-risk chỉ hiển thị khi artifact tương ứng có các trường đó; nếu thiếu, tooltip báo không có thay vì nội suy. Thẻ tóm tắt và một số heatmap không phải mọi ô đều có CI; không dùng màu hay điểm ước lượng đó như kết luận thống kê có ý nghĩa. Các đề xuất Page 5 còn lại trong bảng audit (log-scale forest plot, diễn giải giả định PH và phân vai chart tránh trùng) chưa thuộc phần sửa lần này. Không có phép kiểm định độc lập từ raw monthly population trong lần cập nhật này.
+
 ## Phạm vi và cách đọc kết luận
 
 Đã lần theo các chart builder trong `app/pages/` và `app/components/charts.py`, các accessor ở `app/services/data_service.py`, pipeline tạo CIF/vintage ở `src/competing_risks/`, cùng release `20260929T235303Z_ca7d0c1`. Release có 4 mốc portfolio (12/24/36/60), 60 dòng CIF nhóm FICO/LTV/DTI, 44 dòng vintage-horizon; validation report ghi 62/62 PASS. Điều đó xác nhận hợp đồng dữ liệu và một số invariant, **không chứng minh mọi giả định thống kê hoặc lựa chọn trực quan đều phù hợp**.

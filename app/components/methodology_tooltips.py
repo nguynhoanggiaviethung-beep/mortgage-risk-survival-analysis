@@ -6,7 +6,7 @@ GLOSSARY = {
     "HR": "Hazard Ratio (Mô hình Cox PH: Tỷ lệ rủi ro vỡ nợ tức thời tại thời điểm t).",
     "SHR": "Subdistribution Hazard Ratio (Mô hình Fine-Gray: Tỷ lệ rủi ro tác động trực tiếp lên hàm CIF).",
     "Event": "Sự kiện vỡ nợ (DEFAULT). Sau mốc này ngừng theo dõi khoản vay hoàn toàn.",
-    "Censoring": "Khoản vay kết thúc do Trả nợ trước hạn (VOLUNTARY_PREPAYMENT) hoặc hết hạn quan sát."
+    "Censoring": "Khoản vay được kiểm duyệt khi hết thời gian quan sát mà chưa ghi nhận Default hay ZBC 01. ZBC 01 là kết cục cạnh tranh, gộp trả trước và đáo hạn."
 }
 
 def render_tooltip(term: str):

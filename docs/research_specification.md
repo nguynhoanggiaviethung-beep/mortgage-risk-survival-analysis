@@ -151,9 +151,16 @@ predictor; the value and model-based variance are recorded in diagnostics.
 
 Ba trạng thái phân tích chính:
 
-1. Default
-2. Voluntary Prepayment
-3. Censored
+1. Default = 90+ DPD, RA, or Zero Balance Code 02/03/09.
+2. ZBC 01 competing termination.
+3. Censored = observation ends without an earlier Default or ZBC 01 event.
+
+The analysis operationally labels ZBC 01 as the prepayment competing event.
+Freddie Mac defines source code 01 as “Prepaid or Matured”; therefore all
+dashboard labels and interpretations must state that voluntary payoff and
+maturity are combined in this field and cannot be separated in this sample.
+The earliest event is selected; Default takes priority over ZBC 01 when both
+are recorded in the same month. Codes 15/16/96 are censoring terminations.
 
 ### Horizon
 

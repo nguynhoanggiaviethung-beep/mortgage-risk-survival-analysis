@@ -29,8 +29,8 @@ from app.services import data_service as ds
 
 _EVENT_LABELS = {
     "DEFAULT": "Vỡ nợ",
-    "PREPAYMENT": "Trả trước hạn (ZBC 01)",
-    "VOLUNTARY_PREPAYMENT": "Trả trước hạn (ZBC 01)",
+    "PREPAYMENT": "ZBC 01 · trả trước/đáo hạn (gộp)",
+    "VOLUNTARY_PREPAYMENT": "ZBC 01 · trả trước/đáo hạn (gộp)",
     "CENSOR": "Kết thúc theo dõi",
     "CENSORED": "Kết thúc theo dõi",
 }
