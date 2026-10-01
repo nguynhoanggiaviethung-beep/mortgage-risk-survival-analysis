@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from app.components.kpi_card import kpi_row
+from app.components.page_blocks import page_kicker
 from app.components.styling import section_title
 from app.config import FONT_STACK
 from app.services import data_service as ds
@@ -161,7 +162,7 @@ def _render_intro() -> None:
 
 # ------------------------------------------------------------------- main ----
 def render() -> None:
-    st.markdown(f"<p style='color:{COLOR_TEXT_DARK}; font-weight:bold; font-size:16px; margin-bottom:4px;'>TRANG 2 · RỦI RO DANH MỤC THEO NHÓM KHOẢN VAY</p>", unsafe_allow_html=True)
+    page_kicker(2, "Rủi ro danh mục theo nhóm khoản vay")
     _render_intro()
 
     pd_raw = ds.get_pd_results()

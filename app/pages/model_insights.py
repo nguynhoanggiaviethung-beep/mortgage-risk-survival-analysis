@@ -1,4 +1,4 @@
-"""Trang 5 — PD theo thời gian, competing risks và hệ số mô hình."""
+"""Trang 4 — PD theo thời gian, competing risks và hệ số mô hình."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from app.components.page_blocks import (
     TINT_RED,
     callout,
     inject_page_blocks_css,
+    page_kicker,
     section_heading,
     stat_card,
 )
@@ -392,7 +393,7 @@ def _render_methodology() -> None:
 
 def render() -> None:
     inject_page_blocks_css()
-    st.caption("TRANG 5 · KẾT QUẢ MÔ HÌNH")
+    page_kicker(4, "Kết quả mô hình")
     callout(
         "Trang này dẫn từ xác suất vỡ nợ theo thời gian đến cách mô hình hóa yếu tố liên quan, "
         "đồng thời giải thích vai trò của trả trước hạn như một rủi ro cạnh tranh."

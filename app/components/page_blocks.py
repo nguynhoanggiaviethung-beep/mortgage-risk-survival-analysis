@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+
 import streamlit as st
 
 NAVY = "#293A32"
@@ -52,6 +54,18 @@ def section_heading(number: int, title: str, subtitle: str = "") -> None:
     st.markdown(
         f'<div class="research-section"><div class="research-section-number">{number:02d}</div>'
         f'<div><div class="research-section-title">{title}</div>{suffix}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def page_kicker(number: int, title: str) -> None:
+    """Render the small page-identification label in one shared style."""
+    st.markdown(
+        '<div style="color:#526F5B;font-family:\'Lora\',Georgia,serif;'
+        'font-size:15px;font-weight:700;letter-spacing:.035em;line-height:1.45;'
+        'margin:0 0 14px;padding:0;text-transform:uppercase">'
+        f"TRANG {number} · {html.escape(title)}"
+        "</div>",
         unsafe_allow_html=True,
     )
 

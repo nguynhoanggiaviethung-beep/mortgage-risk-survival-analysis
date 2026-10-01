@@ -1,4 +1,4 @@
-"""Trang 4 — Tra cứu và khám phá hồ sơ khoản vay."""
+"""Trang 5 — Tra cứu và khám phá hồ sơ khoản vay."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from app.components.page_blocks import (
     TINT_RED,
     callout,
     inject_page_blocks_css,
+    page_kicker,
     section_heading,
     stat_card,
 )
@@ -424,7 +425,7 @@ def _render_loan_profile(loan_id: str) -> None:
 
 def render() -> None:
     inject_page_blocks_css()
-    st.caption("TRANG 4 · TRA CỨU KHOẢN VAY")
+    page_kicker(5, "Tra cứu khoản vay")
     callout(
         "Tra cứu hồ sơ theo Loan ID, xem thông tin khoản vay và lịch sử performance theo tháng. "
         "Các hồ sơ gợi ý bên dưới giúp bạn thử nhanh Default, ZBC 01 và censoring termination."

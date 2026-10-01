@@ -20,6 +20,7 @@ from app.components.page_blocks import (
     inject_page_blocks_css,
     section_heading,
     stat_card,
+    page_kicker,
 )
 from app.services.forecast_service import (
     FORECAST_HORIZONS,
@@ -237,7 +238,7 @@ def _render_results(profile: dict[str, float] | None) -> None:
 
 def render() -> None:
     inject_page_blocks_css()
-    st.caption("TRANG 6 · DỰ BÁO KHOẢN VAY MỚI")
+    page_kicker(6, "Dự báo khoản vay mới")
     callout(
         "Dự báo hai kết cục cạnh tranh cho hồ sơ có đặc điểm ban đầu: Default theo định nghĩa nghiên cứu "
         "(90+ DPD/RA hoặc ZBC 02/03/09) và trả trước hạn theo ZBC 01. Đây không phải dự báo quá hạn 30+ DPD."

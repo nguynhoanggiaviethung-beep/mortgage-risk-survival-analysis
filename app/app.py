@@ -19,6 +19,13 @@ from app.config import ACCENT, APP_SUBTITLE, APP_TITLE, PAGE_ICONS, PRIMARY, PRI
 from app.pages import loan_explorer, loan_forecast, model_insights, overview, portfolio_risk, risk_drivers
 from app.services import data_service as ds
 
+# Clear cached release data when the app script is reloaded. Streamlit may keep
+# an imported data_service module alive across hot reloads, so call the cache
+# APIs directly here as well as checking the pointer inside data_service.
+st.cache_data.clear()
+if hasattr(ds, "_release") and hasattr(ds._release, "clear"):
+    ds._release.clear()
+
 # Phạm vi dữ liệu đã khóa trong Project Specification (mục 1)
 COHORT_DEFAULT = "2016 – 2026"
 PERFORMANCE_CUTOFF = "31/03/2026"

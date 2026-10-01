@@ -17,6 +17,7 @@ from app.components.page_blocks import (
     TINT_GREEN,
     callout,
     inject_page_blocks_css,
+    page_kicker,
     section_heading,
     stat_card,
 )
@@ -165,7 +166,7 @@ def _model_explanation(model_type: str, endpoint: str) -> str:
 
 def render() -> None:
     inject_page_blocks_css()
-    st.caption("TRANG 3 · YẾU TỐ RỦI RO")
+    page_kicker(3, "Yếu tố rủi ro")
 
     risk_df = ds.get_risk_driver_results()
     if risk_df.empty:

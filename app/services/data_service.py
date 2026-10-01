@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -25,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 QUERY_DIR = Path(os.environ.get("MORTGAGE_QUERY_DIR", PROJECT_ROOT / "query"))
 ANALYSIS_PATH = PROJECT_ROOT / "data/model/analysis_loans_2016_2026.parquet"
 PERFORMANCE_PATH = PROJECT_ROOT / "data/processed/performance.parquet"
+_ACTIVE_RELEASE_SIGNATURE: str | None = None
 
 
 def get_query_dir() -> Path:
@@ -32,14 +34,39 @@ def get_query_dir() -> Path:
     return QUERY_DIR
 
 
+def refresh_release_cache_if_changed() -> str:
+    """Clear cached projections when the selected dashboard release changes."""
+    global _ACTIVE_RELEASE_SIGNATURE
+    pointer = PROJECT_ROOT / "results/current.json"
+    if pointer.is_file():
+        signature = hashlib.sha256(pointer.read_bytes()).hexdigest()
+    else:
+        signature = f"legacy:{QUERY_DIR.resolve()}"
+    if signature != _ACTIVE_RELEASE_SIGNATURE:
+        st.cache_data.clear()
+        _ACTIVE_RELEASE_SIGNATURE = signature
+    return signature
+
+
 @st.cache_resource(show_spinner=False)
-def _release():
-    return resolve_dashboard_release(PROJECT_ROOT)
+def _release(pointer_signature: str):
+    release = resolve_dashboard_release(PROJECT_ROOT)
+    missing = [
+        str(release.run_root / item.relative_path)
+        for item in release.manifest.artifacts
+        if not (release.run_root / item.relative_path).is_file()
+    ]
+    if missing:
+        raise FileNotFoundError(
+            "Dashboard release is incomplete; missing artifacts: " + ", ".join(missing)
+        )
+    return release
 
 
 def _current_release():
+    signature = refresh_release_cache_if_changed()
     try:
-        return _release()
+        return _release(signature)
     except (FileNotFoundError, ValueError, KeyError, OSError):
         return None
 

@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from app.pages.portfolio_risk import _render_intro
+from app.components.page_blocks import page_kicker
 from app.services import data_service as ds
 from app.config import FONT_STACK
 
@@ -712,7 +713,7 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
 
 
 def render() -> None:
-    st.markdown("<p style='color:#526F5B; font-weight:bold; font-size:15px; margin-bottom:4px;'>TRANG 1 · TỔNG QUAN DANH MỤC THEO NHÓM KHOẢN VAY</p>", unsafe_allow_html=True)
+    page_kicker(1, "Tổng quan danh mục theo nhóm khoản vay")
 
     with st.popover("Vấn đề & câu hỏi nghiên cứu"):
         st.markdown("### Vấn đề nghiên cứu")
