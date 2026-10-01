@@ -166,7 +166,7 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
         for column, (_, row) in zip(columns, horizons.iterrows()):
             with column:
                 stat_card(
-                    f"Default CIF · {int(row['horizon'])} tháng",
+                    f"Xác suất vỡ nợ tích lũy · {int(row['horizon'])} tháng",
                     _format_probability(row["cif_default"]),
                     _ci_note(_curve_at(aj, "DEFAULT", int(row["horizon"]))),
                     RED,
@@ -223,7 +223,7 @@ def _render_competing_risk_comparison(cif: pd.DataFrame, km: pd.DataFrame) -> No
         rows.append({
             "Mốc theo dõi": f"{horizon} tháng",
             "1 − KM": _format_probability(naive),
-            "Default CIF": _format_probability(cif_value),
+            "Xác suất vỡ nợ tích lũy": _format_probability(cif_value),
             "Chênh lệch (1 − KM) − CIF": f"{naive - cif_value:+.2%}",
         })
     if rows:

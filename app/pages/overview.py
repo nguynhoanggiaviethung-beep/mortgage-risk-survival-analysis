@@ -283,7 +283,7 @@ def render_plain_overview(
     with c2:
         st.markdown(
             _card(
-                "Default CIF · 36 tháng",
+                "Xác suất vỡ nợ tích lũy · 36 tháng",
                 _pct(default_rate),
                 f"Trong 100 khoản vay, khoảng <b>{_per_txt(default_rate, 100)}</b> khoản vỡ nợ trong 36 tháng",
                 "CIF tích lũy; trả trước hạn được tính là sự kiện cạnh tranh",
@@ -295,10 +295,10 @@ def render_plain_overview(
     with c3:
         st.markdown(
             _card(
-                "Voluntary Prepayment (ZBC 01) CIF · 36 tháng",
+                "Xác suất trả trước tích lũy (ZBC 01) · 36 tháng",
                 _pct(prepay_rate),
                 f"Trong 100 khoản vay, khoảng <b>{_per_txt(prepay_rate, 100)}</b> ghi nhận mã 01 trong 36 tháng",
-                "Project event: Voluntary Prepayment (ZBC 01); source code gộp prepaid/matured",
+                "Theo quy ước nghiên cứu: ZBC 01; nguồn gộp trả trước và đáo hạn",
                 C_PREPAY,
                 T_PREPAY,
             ),
@@ -381,38 +381,38 @@ def render_plain_overview(
         st.markdown(
             _section(
                 3,
-                "Default và Voluntary Prepayment (ZBC 01) theo horizon",
-                "So sánh cumulative incidence tại các horizon được báo cáo.",
+                "Vỡ nợ và trả trước hạn theo thời gian",
+                "Xác suất tích lũy tại các mốc theo dõi; ZBC 01 được tính là trả trước hạn.",
                 C_PREPAY,
                 T_PREPAY,
             ),
             unsafe_allow_html=True,
         )
         fig = go.Figure()
-        fig.add_scatter(
-            x=horizons, y=[pd_h[h] for h in horizons],
-            name="Default CIF", mode="markers",
-            marker=dict(color=C_DEFAULT, size=10, symbol="circle"),
-            hovertemplate="Horizon %{x} tháng<br>Default CIF: %{y:.2%}<extra></extra>",
+        fig.add_bar(
+            x=[_h_label(h) for h in horizons], y=[pd_h[h] for h in horizons],
+            name="Vỡ nợ", marker_color=C_DEFAULT, text=[_pct(pd_h[h], 1) for h in horizons],
+            textposition="outside", hovertemplate="Mốc %{x}<br>Xác suất vỡ nợ tích lũy: %{y:.2%}<extra></extra>",
         )
         pp_keys = [h for h in horizons if h in pp_h]
         if pp_keys:
-            fig.add_scatter(
-                x=pp_keys, y=[pp_h[h] for h in pp_keys],
-                name="Voluntary Prepayment (ZBC 01) CIF", mode="markers",
-                marker=dict(color=C_PREPAY, size=10, symbol="diamond"),
-                hovertemplate="Horizon %{x} tháng<br>ZBC 01 CIF: %{y:.2%}<extra></extra>",
+            fig.add_bar(
+                x=[_h_label(h) for h in pp_keys], y=[pp_h[h] for h in pp_keys],
+                name="Trả trước hạn (ZBC 01)", marker_color=C_PREPAY,
+                text=[_pct(pp_h[h], 1) for h in pp_keys], textposition="outside",
+                hovertemplate="Mốc %{x}<br>Xác suất trả trước tích lũy: %{y:.2%}<extra></extra>",
             )
         fig.update_layout(
             height=400,
             margin=dict(l=10, r=10, t=40, b=10),
+            barmode="group",
             yaxis=dict(
                 tickformat=".0%",
-                title="Cumulative incidence",
+                title="Xác suất tích lũy",
                 gridcolor=LINE_GRID,
-                range=[0, 1],
+                range=[0, min(1.0, max([*pd_h.values(), *pp_h.values()], default=0.05) * 1.25 or 0.05)],
             ),
-            xaxis=dict(title="Horizon (tháng)", tickmode="array", tickvals=horizons, ticktext=[_h_label(h) for h in horizons]),
+            xaxis=dict(title="Mốc theo dõi kể từ khi bắt đầu (tháng)", type="category"),
             legend=dict(orientation="h", y=1.12, x=0),
             plot_bgcolor="white",
             paper_bgcolor="white",
@@ -432,8 +432,8 @@ def render_plain_overview(
         st.markdown(
             _section(
                 4,
-                "Kaplan–Meier · sống sót khỏi default",
-                "Ước lượng Kaplan–Meier kiểm duyệt khoản vay đã trả trước hạn; đây không phải xác suất thực tế 1 − Default CIF khi có competing risks.",
+                "Xác suất chưa ghi nhận vỡ nợ (Kaplan–Meier)",
+                "Khoản trả trước được xem như kiểm duyệt; vì vậy 1 − KM có thể cao hơn xác suất vỡ nợ thực tế khi có rủi ro cạnh tranh.",
                 C_OK,
                 T_OK,
             ),
@@ -457,14 +457,14 @@ def render_plain_overview(
             mode="lines",
             line=dict(color=C_OK, width=3, shape="hv"),
             customdata=list(zip(km_ci_low or [None] * len(years), km_ci_high or [None] * len(years), km_at_risk or [None] * len(years))),
-            hovertemplate="Sau %{x:.1f} năm: %{y:.1%} KM survival<br>CI 95%: %{customdata[0]:.1%}–%{customdata[1]:.1%}<br>At-risk: %{customdata[2]:,}<extra></extra>",
+            hovertemplate="Sau %{x:.1f} năm: xác suất chưa ghi nhận vỡ nợ %{y:.1%}<br>Khoảng tin cậy 95%: %{customdata[0]:.1%}–%{customdata[1]:.1%}<br>Số khoản còn trong diện rủi ro: %{customdata[2]:,}<extra></extra>",
         )
         fig2.update_layout(
             height=380,
             margin=dict(l=10, r=10, t=20, b=10),
-            xaxis=dict(title="Số năm kể từ mốc origination vận hành", gridcolor=LINE_GRID),
+            xaxis=dict(title="Số năm kể từ mốc khởi tạo nghiên cứu", gridcolor=LINE_GRID),
             yaxis=dict(
-                title="Kaplan–Meier survival",
+                title="Xác suất chưa ghi nhận vỡ nợ",
                 tickformat=".0%",
                 range=[0, 1.005],
                 gridcolor=LINE_GRID,
@@ -488,8 +488,8 @@ def render_plain_overview(
     with st.expander("Giải thích các thuật ngữ chuyên môn"):
         st.markdown(
            "- **PD:** xác suất một khoản vay xảy ra vỡ nợ trong một khoảng thời gian.\n"
-            "- **Default CIF:** tỷ lệ vỡ nợ tích lũy đến một mốc thời gian, có xét đến các sự kiện cạnh tranh.\n"
-            "- **Prepayment CIF:** xác suất tích lũy event ZBC 01 theo quy ước project; source Freddie Mac mô tả ZBC 01 là prepaid or matured, nên không tách riêng maturity.\n"
+            "- **Xác suất vỡ nợ tích lũy:** tỷ lệ vỡ nợ tích lũy đến một mốc thời gian, có xét đến các sự kiện cạnh tranh.\n"
+            "- **Xác suất trả trước tích lũy:** xác suất tích lũy sự kiện ZBC 01 theo quy ước nghiên cứu; nguồn Freddie Mac gộp trả trước và đáo hạn trong mã này nên không tách riêng được hai trường hợp.\n"
             "- **Kaplan–Meier:** ước tính xác suất chưa xảy ra vỡ nợ theo thời gian.\n"
             "- **Origination:** thời điểm bắt đầu khoản vay được đưa vào phân tích."
         )
@@ -687,14 +687,14 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
         marker_color=colors,
         text=[_pct(v, 1) for v in d["cif"]],
         textposition="outside",
-        hovertemplate="Vintage %{x}<br>Default CIF: %{y:.2%}<extra></extra>",
+        hovertemplate="Năm giải ngân: %{x}<br>Xác suất vỡ nợ tích lũy: %{y:.2%}<extra></extra>",
     )
     fig.update_layout(
         height=380,
         margin=dict(l=10, r=10, t=30, b=10),
         xaxis=dict(title="Năm giải ngân", type="category"),
         yaxis=dict(
-            title="Default CIF",
+            title="Xác suất vỡ nợ tích lũy",
             tickformat=".0%",
             gridcolor=LINE_GRID,
             range=[0, float(d["cif"].max()) * 1.25],
@@ -713,6 +713,22 @@ def _render_vintage_compare(pd_raw: pd.DataFrame, options: list, selected) -> No
 
 def render() -> None:
     st.markdown("<p style='color:#526F5B; font-weight:bold; font-size:15px; margin-bottom:4px;'>TRANG 1 · TỔNG QUAN DANH MỤC THEO NHÓM KHOẢN VAY</p>", unsafe_allow_html=True)
+
+    with st.popover("Vấn đề & câu hỏi nghiên cứu"):
+        st.markdown("### Vấn đề nghiên cứu")
+        st.write(
+            "Khoản vay thế chấp có thể kết thúc bằng vỡ nợ hoặc trả trước hạn. "
+            "Trả trước làm khoản vay rời khỏi nhóm còn có thể vỡ nợ, vì vậy cần "
+            "được tính là một sự kiện cạnh tranh khi đo xác suất vỡ nợ theo thời gian. "
+            "Nghiên cứu xem xét mối liên hệ của đặc điểm tín dụng/khoản vay và sự khác biệt giữa các năm giải ngân; không kết luận quan hệ nhân quả."
+        )
+        st.markdown("### Câu hỏi nghiên cứu")
+        st.markdown(
+            "1. Điểm tín dụng, LTV, DTI, lãi suất và kỳ hạn có liên quan thế nào đến rủi ro vỡ nợ theo thời gian?\n"
+            "2. Xác suất vỡ nợ tích lũy thay đổi ra sao theo tuổi khoản vay?\n"
+            "3. Tính trả trước hạn là sự kiện cạnh tranh làm thay đổi ước lượng vỡ nợ thế nào so với Kaplan–Meier?\n"
+            "4. Rủi ro vỡ nợ có khác nhau giữa các năm giải ngân (vintage) không?"
+        )
 
     summary_raw = ds.get_portfolio_summary()
     pd_raw = ds.get_pd_results()

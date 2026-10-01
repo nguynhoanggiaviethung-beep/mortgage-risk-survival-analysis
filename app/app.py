@@ -1,5 +1,5 @@
 """
-Entry point của dashboard — điều hướng 5 trang đúng thứ tự trong
+Entry point của dashboard — điều hướng các trang phân tích và mô phỏng
 Gói_1_Dự_án_4.docx, giao diện đồng bộ với Project Specification (docx).
 
 Chạy: streamlit run app/app.py
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.components.styling import app_header, inject_global_css
 from app.config import ACCENT, APP_SUBTITLE, APP_TITLE, PAGE_ICONS, PRIMARY, PRIMARY_DARK, TEXT_MUTED
-from app.pages import loan_explorer, model_insights, overview, portfolio_risk, risk_drivers
+from app.pages import loan_explorer, loan_simulator, model_insights, overview, portfolio_risk, risk_drivers
 from app.services import data_service as ds
 
 # Phạm vi dữ liệu đã khóa trong Project Specification (mục 1)
@@ -62,12 +62,18 @@ def _page_model_insights():
     model_insights.render()
 
 
+def _page_loan_simulator():
+    app_header("Mô phỏng khoản vay", "Ước lượng sự kiện quá hạn 30+ ngày theo đặc điểm khoản vay ban đầu.", "SIMULATION / 06")
+    loan_simulator.render()
+
+
 PAGES = [
     st.Page(_page_overview, title="Tổng quan", icon=PAGE_ICONS["overview"], default=True),
     st.Page(_page_portfolio_risk, title="Rủi ro danh mục", icon=PAGE_ICONS["portfolio_risk"]),
     st.Page(_page_risk_drivers, title="Yếu tố rủi ro", icon=PAGE_ICONS["risk_drivers"]),
     st.Page(_page_loan_explorer, title="Tra cứu khoản vay", icon=PAGE_ICONS["loan_explorer"]),
     st.Page(_page_model_insights, title="Kết quả mô hình", icon=PAGE_ICONS["model_insights"]),
+    st.Page(_page_loan_simulator, title="Mô phỏng khoản vay", icon="🧮"),
 ]
 
 

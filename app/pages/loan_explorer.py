@@ -26,8 +26,8 @@ from app.services import data_service as ds
 
 _EVENT_LABELS = {
     "DEFAULT": "Vỡ nợ",
-    "PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
-    "VOLUNTARY_PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
+    "PREPAYMENT": "Trả trước hạn (ZBC 01)",
+    "VOLUNTARY_PREPAYMENT": "Trả trước hạn (ZBC 01)",
     "CENSOR": "Kết thúc theo dõi",
     "CENSORED": "Kết thúc theo dõi",
 }
@@ -89,6 +89,7 @@ def _set_example_loan(loan_id: str) -> None:
     # Do not mutate the text-input key here: the widget is already instantiated
     # earlier in this page run, so Streamlit raises WidgetAlreadyInstantiatedError.
     st.session_state["active_loan_id"] = loan_id
+    st.session_state["scroll_to_loan_profile"] = True
 
 
 def _catalog_label(row) -> str:
@@ -99,7 +100,7 @@ def _catalog_label(row) -> str:
 
 
 def _render_search_and_catalog() -> None:
-    catalog = ds.get_loan_catalog()
+    examples = ds.get_loan_catalog_examples()
     section_heading(
         1,
         "Chọn khoản vay để tra cứu",
@@ -107,11 +108,11 @@ def _render_search_and_catalog() -> None:
     )
 
     sample_rows = pd.DataFrame()
-    if not catalog.empty and "event_type" in catalog.columns:
+    if not examples.empty and "event_type" in examples.columns:
         wanted_events = ["DEFAULT", "PREPAYMENT", "CENSOR"]
         sample_rows = pd.concat(
             [
-                catalog[catalog["event_type"].astype(str).str.upper() == event].head(1)
+                examples[examples["event_type"].astype(str).str.upper() == event].head(1)
                 for event in wanted_events
             ],
             ignore_index=True,
@@ -163,34 +164,39 @@ def _render_search_and_catalog() -> None:
                 )
         if submitted:
             st.session_state["active_loan_id"] = typed_id.strip().upper()
+            st.session_state["scroll_to_loan_profile"] = True
 
-    section_heading(
-        2,
-        "Danh mục khoản vay mẫu",
-        "Bảng gợi ý gồm các hồ sơ có thể mở timeline; bộ dữ liệu gốc vẫn chứa toàn bộ khoản vay.",
-    )
-    if catalog.empty:
+    section_heading(2, "Danh mục khoản vay", "Toàn bộ hồ sơ đủ điều kiện trong mẫu nghiên cứu; có thể lọc, tìm và mở từng khoản vay.")
+    if examples.empty:
         st.info("Không đọc được danh mục gợi ý. Bạn vẫn có thể nhập Loan ID ở ô tra cứu phía trên.")
         return
 
-    filter_vintage, filter_event = st.columns([1, 1])
-    vintages = ["Tất cả"] + sorted(catalog["origination_vintage"].dropna().astype(int).unique().tolist())
-    events = ["Tất cả"] + sorted(catalog["event_type"].dropna().astype(str).str.upper().unique().tolist())
+    vintages = list(range(2016, 2027))
+    events = ["DEFAULT", "PREPAYMENT", "CENSOR"]
+    filter_vintage, filter_event, filter_search = st.columns([1, 1, 2])
     with filter_vintage:
-        selected_vintage = st.selectbox("Năm giải ngân", vintages, key="catalog_vintage")
+        selected_vintage = st.selectbox("Năm giải ngân", ["Tất cả"] + vintages, key="catalog_vintage")
     with filter_event:
         selected_event = st.selectbox(
             "Kết cục trong dữ liệu",
-            events,
+            ["Tất cả"] + events,
             format_func=lambda value: "Tất cả kết cục" if value == "Tất cả" else _EVENT_LABELS.get(value, value),
             key="catalog_event",
         )
-
-    visible = catalog.copy()
-    if selected_vintage != "Tất cả":
-        visible = visible[visible["origination_vintage"].astype(int) == selected_vintage]
-    if selected_event != "Tất cả":
-        visible = visible[visible["event_type"].astype(str).str.upper() == selected_event]
+    with filter_search:
+        search_text = st.text_input("Tìm theo Loan ID", placeholder="Nhập một phần hoặc toàn bộ mã khoản vay", key="catalog_search")
+    vintage_filter = None if selected_vintage == "Tất cả" else int(selected_vintage)
+    event_filter = None if selected_event == "Tất cả" else str(selected_event)
+    total = ds.get_loan_catalog_count(vintage_filter, event_filter, search_text)
+    page_size = 100
+    page_count = max(1, (total + page_size - 1) // page_size)
+    page = st.number_input(
+        "Trang danh mục", min_value=1, max_value=page_count, value=1, step=1,
+        key=f"catalog_page_{vintage_filter}_{event_filter}_{search_text}",
+    )
+    offset = (int(page) - 1) * page_size
+    visible = ds.get_loan_catalog_page(vintage_filter, event_filter, search_text, offset, page_size)
+    st.caption(f"{total:,} khoản vay phù hợp · hiển thị {offset + 1 if total else 0}–{min(offset + page_size, total):,} · trang {int(page)}/{page_count}")
     display = visible.rename(
         columns={
             "loan_id": "Loan ID",
@@ -263,6 +269,13 @@ def _render_loan_profile(loan_id: str) -> None:
         "neutral": (NAVY, TINT_NAVY),
     }.get(kind, (NAVY, TINT_GRAY))
 
+    should_scroll = bool(st.session_state.pop("scroll_to_loan_profile", False))
+    st.html("<div id='loan-profile-anchor'></div>")
+    if should_scroll:
+        try:
+            st.html("<script>setTimeout(() => document.getElementById('loan-profile-anchor')?.scrollIntoView({behavior:'smooth', block:'start'}), 180);</script>", unsafe_allow_javascript=True)
+        except TypeError:
+            st.markdown("<a href='#loan-profile-anchor'>Đã mở hồ sơ khoản vay</a>", unsafe_allow_html=True)
     section_heading(
         3,
         "Hồ sơ khoản vay",
@@ -297,7 +310,7 @@ def _render_loan_profile(loan_id: str) -> None:
     section_heading(
         4,
         "Diễn biến theo thời gian",
-        "Theo dõi delinquency status và current actual UPB theo tháng; mỗi panel có đơn vị riêng.",
+        "Theo dõi tình trạng quá hạn và dư nợ thực tế theo tháng; mỗi biểu đồ có đơn vị riêng.",
     )
     callout(
         "Mốc khởi tạo là First Payment Date trừ một tháng theo định nghĩa nghiên cứu; "
@@ -341,22 +354,35 @@ def _render_loan_profile(loan_id: str) -> None:
     band = _credit_score_band(float(score))
     comparison = ds.get_pd_results(group="credit_score_band", group_value=band)
     if comparison.empty:
-        st.info(f"Chưa có Default CIF cho nhóm FICO {band}.")
+        st.info(f"Chưa tìm thấy kết quả đã công bố cho nhóm FICO {band}. Điều này không có nghĩa là nhóm không phát sinh vỡ nợ.")
         return
-    if "follow_up_flag" in comparison.columns:
-        eligible = comparison["follow_up_flag"].astype(str).str.lower().isin({"true", "1", "yes"})
-        comparison = comparison[eligible]
+    if "follow_up_status" in comparison.columns:
+        supported = comparison["follow_up_status"].astype(str).str.upper().eq("ELIGIBLE")
+    elif "follow_up_flag" in comparison.columns:
+        supported = comparison["follow_up_flag"].astype(str).str.lower().isin({"true", "1", "yes"})
+    else:
+        supported = pd.Series(True, index=comparison.index)
+    unsupported = comparison.loc[~supported].copy()
+    if "follow_up_flag" in comparison.columns or "follow_up_status" in comparison.columns:
+        comparison = comparison[supported]
     comparison = comparison.sort_values("horizon")
     if comparison.empty:
-        st.info(f"Nhóm FICO {band} chưa có horizon đủ theo dõi; không ngoại suy CIF.")
+        at_risk_col = "number_at_risk" if "number_at_risk" in unsupported else "n_at_risk"
+        risk_values = pd.to_numeric(unsupported.get(at_risk_col, pd.Series(dtype=float)), errors="coerce")
+        max_risk = int(risk_values.max()) if risk_values.notna().any() else 0
+        st.info(
+            f"Nhóm FICO {band} có hồ sơ trong mẫu, nhưng CIF ở các mốc này không được ước lượng "
+            f"vì không còn đủ khoản vay đang được theo dõi tại horizon (số còn trong diện rủi ro tối đa: {max_risk:,}). "
+            "Đây không phải kết luận rằng nhóm không có ca vỡ nợ; hệ thống không ngoại suy khi thiếu hỗ trợ dữ liệu."
+        )
         return
 
     cards = st.columns(min(len(comparison), 4))
     for idx, (_, row) in enumerate(comparison.iterrows()):
         value = row.get("cif_default")
         shown = f"{float(value):.2%}" if pd.notna(value) else "—"
-        at_risk = row.get("number_at_risk")
-        note = f"Còn {int(at_risk):,} khoản at risk" if pd.notna(at_risk) else "Có tính đến trả trước là rủi ro cạnh tranh"
+        at_risk = row.get("number_at_risk", row.get("n_at_risk"))
+        note = f"Còn {int(at_risk):,} khoản còn theo dõi" if pd.notna(at_risk) else "Có tính trả trước là rủi ro cạnh tranh"
         with cards[idx % len(cards)]:
             stat_card(
                 f"Default CIF · {int(row['horizon'])} tháng",

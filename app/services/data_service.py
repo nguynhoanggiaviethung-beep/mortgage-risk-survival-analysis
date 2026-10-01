@@ -281,26 +281,67 @@ def get_loan_profile(loan_id: str | None = None) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def get_loan_catalog() -> pd.DataFrame:
-    """Return a small, representative, searchable set of eligible loan examples."""
+def get_loan_catalog_page(
+    vintage: int | None = None,
+    event_type: str | None = None,
+    search: str = "",
+    offset: int = 0,
+    page_size: int = 100,
+) -> pd.DataFrame:
+    """Return one page of the full eligible loan catalog; never load it all into UI."""
     if not ANALYSIS_PATH.exists():
-        return _legacy("loan_profile").head(40)
-
+        return _legacy("loan_profile").head(page_size)
+    source = pl.scan_parquet(ANALYSIS_PATH).filter(
+        pl.col("survival_eligible").fill_null(False)
+    )
+    if vintage is not None:
+        source = source.filter(pl.col("vintage_year") == int(vintage))
+    if event_type:
+        source = source.filter(pl.col("event_type").cast(pl.String).str.to_uppercase() == event_type.upper())
+    if search.strip():
+        source = source.filter(pl.col("loan_id").cast(pl.String).str.contains(search.strip(), literal=True))
     columns = [
         "loan_id", "vintage_year", "event_type", "fico", "original_ltv",
         "original_dti", "original_loan_term", "duration_months",
     ]
-    catalog = (
-        pl.scan_parquet(ANALYSIS_PATH)
-        .filter(pl.col("survival_eligible"))
-        .select(columns)
-        .unique(subset=["vintage_year", "event_type"], keep="first", maintain_order=True)
-        .sort(["vintage_year", "event_type"])
-        .collect()
-        .to_pandas()
-        .rename(columns={"vintage_year": "origination_vintage"})
+    return (
+        source.select(columns).sort("loan_id")
+        .slice(max(0, int(offset)), max(1, int(page_size))).collect()
+        .to_pandas().rename(columns={"vintage_year": "origination_vintage"})
     )
-    return catalog
+
+
+@st.cache_data(show_spinner=False)
+def get_loan_catalog_count(
+    vintage: int | None = None, event_type: str | None = None, search: str = ""
+) -> int:
+    if not ANALYSIS_PATH.exists():
+        return len(_legacy("loan_profile"))
+    source = pl.scan_parquet(ANALYSIS_PATH).filter(
+        pl.col("survival_eligible").fill_null(False)
+    )
+    if vintage is not None:
+        source = source.filter(pl.col("vintage_year") == int(vintage))
+    if event_type:
+        source = source.filter(pl.col("event_type").cast(pl.String).str.to_uppercase() == event_type.upper())
+    if search.strip():
+        source = source.filter(pl.col("loan_id").cast(pl.String).str.contains(search.strip(), literal=True))
+    return int(source.select(pl.len()).collect().item())
+
+
+@st.cache_data(show_spinner=False)
+def get_loan_catalog_examples() -> pd.DataFrame:
+    """One eligible example per observed event type for the quick-open buttons."""
+    if not ANALYSIS_PATH.exists():
+        return _legacy("loan_profile").head(40)
+    columns = ["loan_id", "vintage_year", "event_type", "fico"]
+    return (
+        pl.scan_parquet(ANALYSIS_PATH)
+        .filter(pl.col("survival_eligible").fill_null(False))
+        .select(columns).sort("loan_id")
+        .unique(subset=["event_type"], keep="first", maintain_order=True)
+        .collect().to_pandas().rename(columns={"vintage_year": "origination_vintage"})
+    )
 
 
 @st.cache_data(show_spinner=False)
