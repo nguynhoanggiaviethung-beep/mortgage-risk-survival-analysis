@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.components.styling import app_header, inject_global_css
 from app.config import ACCENT, APP_SUBTITLE, APP_TITLE, PAGE_ICONS, PRIMARY, PRIMARY_DARK, TEXT_MUTED
-from app.pages import loan_explorer, loan_simulator, model_insights, overview, portfolio_risk, risk_drivers
+from app.pages import loan_explorer, loan_forecast, model_insights, overview, portfolio_risk, risk_drivers
 from app.services import data_service as ds
 
 # Phạm vi dữ liệu đã khóa trong Project Specification (mục 1)
@@ -35,8 +35,8 @@ inject_global_css()
 
 def _page_overview():
     app_header(
-        "Mortgage risk overview",
-        "Theo dõi xác suất vỡ nợ và trả trước từ dữ liệu khoản vay Freddie Mac.",
+        "Tổng quan dữ liệu",
+        "Quy mô, phạm vi và bức tranh rủi ro của danh mục khoản vay Freddie Mac.",
         "LOAN BOOK / 01",
     )
     overview.render()
@@ -53,27 +53,31 @@ def _page_risk_drivers():
 
 
 def _page_loan_explorer():
-    app_header("Tra cứu khoản vay", "Xem đặc điểm và lịch sử quan sát của một khoản vay theo Loan ID.", "LOAN BOOK / 04")
+    app_header("Tra cứu khoản vay", "Xem đặc điểm và lịch sử quan sát của một khoản vay theo Loan ID.", "LOAN BOOK / 05")
     loan_explorer.render()
 
 
 def _page_model_insights():
-    app_header("Kết quả mô hình", "Đánh giá đường cong sống sót, xác suất tích lũy và giả định mô hình.", "MODEL REVIEW / 05")
+    app_header("Kết quả mô hình", "Đánh giá đường cong sống sót, xác suất tích lũy và giả định mô hình.", "MODEL REVIEW / 04")
     model_insights.render()
 
 
-def _page_loan_simulator():
-    app_header("Mô phỏng khoản vay", "Ước lượng sự kiện quá hạn 30+ ngày theo đặc điểm khoản vay ban đầu.", "SIMULATION / 06")
-    loan_simulator.render()
+def _page_loan_forecast():
+    app_header(
+        "Dự báo khoản vay mới",
+        "Khung dự báo CIF vỡ nợ và trả trước cho hồ sơ khoản vay ban đầu.",
+        "NEW LOAN / 06",
+    )
+    loan_forecast.render()
 
 
 PAGES = [
-    st.Page(_page_overview, title="Tổng quan", icon=PAGE_ICONS["overview"], default=True),
+    st.Page(_page_overview, title="Tổng quan dữ liệu", icon=PAGE_ICONS["overview"], default=True),
     st.Page(_page_portfolio_risk, title="Rủi ro danh mục", icon=PAGE_ICONS["portfolio_risk"]),
     st.Page(_page_risk_drivers, title="Yếu tố rủi ro", icon=PAGE_ICONS["risk_drivers"]),
-    st.Page(_page_loan_explorer, title="Tra cứu khoản vay", icon=PAGE_ICONS["loan_explorer"]),
     st.Page(_page_model_insights, title="Kết quả mô hình", icon=PAGE_ICONS["model_insights"]),
-    st.Page(_page_loan_simulator, title="Mô phỏng khoản vay", icon="🧮"),
+    st.Page(_page_loan_explorer, title="Tra cứu khoản vay", icon=PAGE_ICONS["loan_explorer"]),
+    st.Page(_page_loan_forecast, title="Dự báo khoản vay mới", icon=":material/online_prediction:"),
 ]
 
 

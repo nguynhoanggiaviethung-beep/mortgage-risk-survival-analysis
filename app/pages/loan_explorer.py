@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pandas as pd
 import streamlit as st
 
@@ -163,8 +165,13 @@ def _render_search_and_catalog() -> None:
                     use_container_width=True,
                 )
         if submitted:
-            st.session_state["active_loan_id"] = typed_id.strip().upper()
-            st.session_state["scroll_to_loan_profile"] = True
+            normalized_id = typed_id.strip().upper()
+            if normalized_id:
+                st.session_state["active_loan_id"] = normalized_id
+                st.session_state["scroll_to_loan_profile"] = True
+            else:
+                st.session_state.pop("scroll_to_loan_profile", None)
+                st.warning("Vui lòng nhập Loan ID trước khi tra cứu.")
 
     section_heading(2, "Danh mục khoản vay", "Toàn bộ hồ sơ đủ điều kiện trong mẫu nghiên cứu; có thể lọc, tìm và mở từng khoản vay.")
     if examples.empty:
@@ -270,12 +277,30 @@ def _render_loan_profile(loan_id: str) -> None:
     }.get(kind, (NAVY, TINT_GRAY))
 
     should_scroll = bool(st.session_state.pop("scroll_to_loan_profile", False))
-    st.html("<div id='loan-profile-anchor'></div>")
+    st.html("<div id='loan-profile-anchor' style='scroll-margin-top:1.25rem'></div>")
     if should_scroll:
-        try:
-            st.html("<script>setTimeout(() => document.getElementById('loan-profile-anchor')?.scrollIntoView({behavior:'smooth', block:'start'}), 180);</script>", unsafe_allow_javascript=True)
-        except TypeError:
-            st.markdown("<a href='#loan-profile-anchor'>Đã mở hồ sơ khoản vay</a>", unsafe_allow_html=True)
+        # Change the script markup on each button-triggered rerun so the
+        # browser executes it again; retry while Streamlit finishes rendering.
+        request_token = uuid4().hex
+        st.html(
+            f"""
+            <script data-scroll-request="{request_token}">
+              (() => {{
+                let attempts = 0;
+                const scrollToProfile = () => {{
+                  const target = document.getElementById("loan-profile-anchor");
+                  if (target) {{
+                    target.scrollIntoView({{ behavior: "smooth", block: "start" }});
+                    return;
+                  }}
+                  if (attempts++ < 30) window.setTimeout(scrollToProfile, 100);
+                }};
+                window.requestAnimationFrame(() => window.setTimeout(scrollToProfile, 100));
+              }})();
+            </script>
+            """,
+            unsafe_allow_javascript=True,
+        )
     section_heading(
         3,
         "Hồ sơ khoản vay",
