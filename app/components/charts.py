@@ -44,13 +44,14 @@ def survival_curve_chart(df: pd.DataFrame, group_col: str = "group_value") -> go
                 fill="toself", fillcolor=color, opacity=0.12,
                 line=dict(width=0), showlegend=False, hoverinfo="skip",
             ))
+        group_label = {"DEFAULT": "Vỡ nợ", "PREPAYMENT": "Trả trước hạn", "CENSOR": "Kiểm duyệt"}.get(str(g).upper(), str(g)) if g is not None else "Toàn danh mục"
         fig.add_trace(go.Scatter(
             x=sub["analysis_time"], y=sub["survival"],
-            mode="lines", name=str(g) if g is not None else "Survival",
+            mode="lines", name=group_label,
             line=dict(color=color, width=2, shape="hv"),
         ))
-    fig.update_yaxes(title="Survival S(t)", range=[0, 1])
-    fig.update_xaxes(title="Months since origination-month proxy (first payment = month 1)")
+    fig.update_yaxes(title="Xác suất chưa xảy ra vỡ nợ S(t)", range=[0, 1], tickformat=".0%")
+    fig.update_xaxes(title="Số tháng kể từ mốc khởi tạo nghiên cứu")
     return _apply_layout(fig)
 
 
@@ -58,7 +59,7 @@ def cif_chart(df: pd.DataFrame) -> go.Figure:
     """Aalen–Johansen step CIF curves with pointwise confidence bands."""
     fig = go.Figure()
     if {"endpoint", "analysis_time", "cumulative_incidence"}.issubset(df.columns):
-        palette = {"DEFAULT": (DANGER, "Default CIF"), "PREPAYMENT": (PRIMARY, "Voluntary Prepayment (ZBC 01) CIF")}
+        palette = {"DEFAULT": (DANGER, "Xác suất vỡ nợ tích lũy"), "PREPAYMENT": (PRIMARY, "Xác suất trả trước tích lũy (ZBC 01)")}
         for endpoint, (color, label) in palette.items():
             d = df[df["endpoint"].astype(str).str.upper() == endpoint].sort_values("analysis_time")
             if d.empty:
@@ -74,21 +75,21 @@ def cif_chart(df: pd.DataFrame) -> go.Figure:
             fig.add_trace(go.Scatter(
                 x=d["analysis_time"], y=d["cumulative_incidence"], mode="lines",
                 name=label, line=dict(color=color, width=2.5, shape="hv"), customdata=custom,
-                hovertemplate=("Tháng %{x}<br>CIF: %{y:.2%}" +
-                    ("<br>CI 95%: %{customdata[0]:.2%}–%{customdata[1]:.2%}" if {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
-                    ("<br>Còn at-risk: %{customdata[2]:,}" if "n_at_risk" in d.columns and {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
+                hovertemplate=("Tháng %{x}<br>Xác suất tích lũy: %{y:.2%}" +
+                    ("<br>Khoảng tin cậy 95%: %{customdata[0]:.2%}–%{customdata[1]:.2%}" if {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
+                    ("<br>Số khoản còn trong diện rủi ro: %{customdata[2]:,}" if "n_at_risk" in d.columns and {"ci_lower", "ci_upper"}.issubset(d.columns) else "") +
                     "<extra></extra>"),
             ))
-        fig.update_xaxes(title="Tháng kể từ mốc origination vận hành")
+        fig.update_xaxes(title="Số tháng kể từ mốc khởi tạo nghiên cứu")
     else:
         # Backward-compatible fallback for legacy horizon tables: show points
         # without interpolating between fixed horizons.
         d = df.sort_values("horizon")
-        fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_default"], mode="markers", name="Default CIF", marker_color=DANGER))
+        fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_default"], mode="lines+markers", name="Xác suất vỡ nợ tích lũy", marker_color=DANGER, line_shape="hv"))
         if "cif_prepayment" in d.columns:
-            fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_prepayment"], mode="markers", name="Voluntary Prepayment (ZBC 01) CIF", marker_color=PRIMARY))
-        fig.update_xaxes(title="Horizon (tháng)")
-    fig.update_yaxes(title="Cumulative incidence", tickformat=".0%", range=[0, 1])
+            fig.add_trace(go.Scatter(x=d["horizon"], y=d["cif_prepayment"], mode="lines+markers", name="Xác suất trả trước tích lũy (ZBC 01)", marker_color=PRIMARY, line_shape="hv"))
+        fig.update_xaxes(title="Mốc thời gian theo dõi (tháng)")
+    fig.update_yaxes(title="Xác suất tích lũy", tickformat=".0%", rangemode="tozero")
     return _apply_layout(fig)
 
 
@@ -116,13 +117,13 @@ def km_vs_cif_compare_chart(df_km: pd.DataFrame, df_cif: pd.DataFrame) -> go.Fig
     km_ci_indices = (km_custom_cols.index("ci_lower"), km_custom_cols.index("ci_upper")) if {"ci_lower", "ci_upper"}.issubset(km_custom_cols) else (
         (km_custom_cols.index("ci_low"), km_custom_cols.index("ci_high")) if {"ci_low", "ci_high"}.issubset(km_custom_cols) else None
     )
-    km_hover = "Tháng %{x}<br>1−KM: %{y:.2%}"
+    km_hover = "Tháng %{x}<br>Ước tính 1 − KM: %{y:.2%}"
     if km_ci_indices:
-        km_hover += f"<br>95% CI: %{{customdata[{km_ci_indices[0]}]:.2%}}–%{{customdata[{km_ci_indices[1]}]:.2%}}"
+        km_hover += f"<br>Khoảng tin cậy 95%: %{{customdata[{km_ci_indices[0]}]:.2%}}–%{{customdata[{km_ci_indices[1]}]:.2%}}"
     km_hover += "<extra></extra>"
     fig.add_trace(go.Scatter(
         x=km["analysis_time"], y=1 - km["survival"], mode="lines",
-        name="1 − KM survival (censor prepayment)",
+        name="1 − Kaplan–Meier (coi trả trước là kiểm duyệt)",
         line=dict(color=TEXT_MUTED, width=2, dash="dash", shape="hv"), customdata=km_custom,
         hovertemplate=km_hover,
     ))
@@ -137,11 +138,11 @@ def km_vs_cif_compare_chart(df_km: pd.DataFrame, df_cif: pd.DataFrame) -> go.Fig
             ))
         custom_cols = [c for c in ("ci_lower", "ci_upper", "n_at_risk") if c in cif.columns]
         custom = cif[custom_cols].to_numpy()
-        cif_hover = "Tháng %{x}<br>Default CIF: %{y:.2%}"
+        cif_hover = "Tháng %{x}<br>Xác suất vỡ nợ tích lũy: %{y:.2%}"
         if {"ci_lower", "ci_upper"}.issubset(custom_cols):
-            cif_hover += "<br>95% CI: %{customdata[0]:.2%}–%{customdata[1]:.2%}"
+            cif_hover += "<br>Khoảng tin cậy 95%: %{customdata[0]:.2%}–%{customdata[1]:.2%}"
         if "n_at_risk" in custom_cols:
-            cif_hover += f"<br>At-risk: %{{customdata[{custom_cols.index('n_at_risk')}]:,}}"
+            cif_hover += f"<br>Số khoản còn trong diện rủi ro: %{{customdata[{custom_cols.index('n_at_risk')}]:,}}"
         cif_hover += "<extra></extra>"
     else:
         cif = df_cif.sort_values("horizon")
@@ -149,16 +150,21 @@ def km_vs_cif_compare_chart(df_km: pd.DataFrame, df_cif: pd.DataFrame) -> go.Fig
         custom = None
     fig.add_trace(go.Scatter(
         x=cif_x, y=cif_y, mode="lines",
-        name="Default CIF (competing risk)",
+        name="Xác suất vỡ nợ tích lũy (có xét trả trước cạnh tranh)",
         line=dict(color=DANGER, width=2.5, shape="hv"), customdata=custom,
-        hovertemplate=cif_hover if custom is not None else "Tháng %{x}<br>Default CIF: %{y:.2%}<extra></extra>",
+        hovertemplate=cif_hover if custom is not None else "Tháng %{x}<br>Xác suất vỡ nợ tích lũy: %{y:.2%}<extra></extra>",
     ))
-    fig.update_xaxes(title="Tháng kể từ mốc origination vận hành")
-    fig.update_yaxes(title="Probability", tickformat=".0%", range=[0, 1])
+    fig.update_xaxes(title="Số tháng kể từ mốc khởi tạo nghiên cứu")
+    fig.update_yaxes(title="Xác suất tích lũy", tickformat=".0%", rangemode="tozero")
     return _apply_layout(fig)
 
 
 def risk_by_band_bar(df: pd.DataFrame, x_col: str, y_col: str, y_title: str) -> go.Figure:
+    x_labels = {
+        "fico_band": "Nhóm điểm FICO", "credit_score_band": "Nhóm điểm FICO",
+        "ltv_band": "Nhóm LTV", "dti_band": "Nhóm DTI",
+        "vintage_year": "Năm giải ngân", "vintage": "Năm giải ngân",
+    }
     fig = go.Figure(go.Bar(
         x=df[x_col], y=df[y_col],
         marker_color=PRIMARY,
@@ -166,7 +172,7 @@ def risk_by_band_bar(df: pd.DataFrame, x_col: str, y_col: str, y_title: str) -> 
         textposition="outside",
     ))
     fig.update_yaxes(title=y_title, tickformat=".0%")
-    fig.update_xaxes(title=x_col)
+    fig.update_xaxes(title=x_labels.get(x_col, x_col))
     return _apply_layout(fig, height=320)
 
 
@@ -184,10 +190,10 @@ def forest_plot(df: pd.DataFrame) -> go.Figure:
             arrayminus=d["hr_shr"] - d["ci_low"],
             color=PRIMARY,
         ),
-        name="HR / SHR",
+        name="Tỷ số nguy cơ",
     ))
-    fig.add_vline(x=1, line_dash="dash", line_color=TEXT_MUTED, annotation_text="HR = 1")
-    fig.update_xaxes(title="Hazard Ratio / Sub-distribution Hazard Ratio (log scale)", type="log")
+    fig.add_vline(x=1, line_dash="dash", line_color=TEXT_MUTED, annotation_text="Mốc = 1")
+    fig.update_xaxes(title="Tỷ số nguy cơ HR/SHR (thang logarit)", type="log")
     return _apply_layout(fig, height=max(280, 60 * len(d)))
 
 
@@ -221,36 +227,30 @@ def loan_timeline_chart(df: pd.DataFrame, loan_age: int | None = None) -> go.Fig
     monthly = d.set_index("analysis_time_month").reindex(range(min_month, max_month + 1))
     terminal = d.iloc[-1]
     event_type = str(terminal.get("event_type", "CENSOR")).upper()
-    event_label = {
-        "DEFAULT": "Default",
-        "VOLUNTARY_PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
-        "PREPAYMENT": "Voluntary Prepayment (ZBC 01)",
-    }.get(event_type, "Censoring termination / cuối kỳ quan sát")
-
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12,
-                        row_heights=[0.42, 0.58], subplot_titles=("Trạng thái quá hạn", "Current Actual UPB"))
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16,
+                        row_heights=[0.44, 0.56], subplot_titles=("Tình trạng quá hạn", "Dư nợ thực tế (USD)"))
     fig.add_trace(go.Scatter(
         x=monthly.index, y=monthly["status_rank"], mode="lines+markers",
         line=dict(color=PRIMARY, width=2, shape="hv"),
-        marker=dict(size=6, color=PRIMARY), name="Delinquency status",
+        marker=dict(size=6, color=PRIMARY), name="Tình trạng quá hạn",
         customdata=monthly[[c for c in ("current_delinquency_status", "delinquency_num", "is_ra") if c in monthly.columns]].to_numpy(),
-        hovertemplate="Tháng %{x}<br>Status: %{customdata[0]}<br>Delinquency code: %{customdata[1]}<extra></extra>",
+        hovertemplate="Tháng %{x}<br>Mã tình trạng: %{customdata[0]}<br>Số tháng quá hạn: %{customdata[1]}<extra></extra>",
         connectgaps=False,
     ), row=1, col=1)
     fig.add_trace(go.Scatter(
         x=monthly.index, y=monthly["current_actual_upb"], mode="lines+markers",
         line=dict(color="#2E7D32", width=2),
-        marker=dict(size=4, color="#2E7D32"), name="Current Actual UPB",
-        hovertemplate="Tháng %{x}<br>Current Actual UPB: $%{y:,.0f}<extra></extra>",
+        marker=dict(size=4, color="#2E7D32"), name="Dư nợ thực tế",
+        hovertemplate="Tháng %{x}<br>Dư nợ thực tế: $%{y:,.0f}<extra></extra>",
         connectgaps=False,
     ), row=2, col=1)
-    fig.add_vline(x=int(terminal["analysis_time_month"]), line_dash="dash", line_color=DANGER,
-                  annotation_text=event_label, annotation_position="top right")
-    fig.add_vline(x=0, line_dash="dot", line_color=TEXT_MUTED, annotation_text="Origination proxy", row=1, col=1)
-    fig.add_vline(x=1, line_dash="dot", line_color=PRIMARY, annotation_text="First payment month", row=1, col=1)
-    fig.update_yaxes(title="Delinquency status", tickmode="array", tickvals=[0, 1, 2, 3, 4],
-                     ticktext=["Current", "30 DPD", "60 DPD", "90+ DPD", "RA"], range=[-0.5, 4.5], row=1, col=1)
-    fig.update_yaxes(title="UPB (USD)", tickprefix="$", separatethousands=True, rangemode="tozero", row=2, col=1)
-    fig.update_xaxes(title="Months since origination-month proxy (first payment = month 1)", row=2, col=1)
-    fig.update_layout(legend=dict(orientation="h", y=-0.18), margin=dict(l=35, r=30, t=55, b=70))
+    fig.add_vline(x=int(terminal["analysis_time_month"]), line_dash="dash", line_color=DANGER)
+    fig.add_vline(x=0, line_dash="dot", line_color=TEXT_MUTED, row=1, col=1)
+    fig.add_vline(x=1, line_dash="dot", line_color=PRIMARY, row=1, col=1)
+    fig.update_yaxes(tickmode="array", tickvals=[0, 1, 2, 3, 4],
+                     ticktext=["Hiện tại", "Trễ 30 ngày", "Trễ 60 ngày", "Trễ từ 90 ngày", "RA"], range=[-0.5, 4.5], row=1, col=1)
+    fig.update_yaxes(title="Mức quá hạn", tickfont=dict(size=10), row=1, col=1)
+    fig.update_yaxes(title="Dư nợ (USD)", tickprefix="$", separatethousands=True, rangemode="tozero", row=2, col=1)
+    fig.update_xaxes(title="Số tháng từ mốc khởi tạo nghiên cứu", row=2, col=1)
+    fig.update_layout(showlegend=False, margin=dict(l=48, r=30, t=75, b=58))
     return _apply_layout(fig, height=430)
