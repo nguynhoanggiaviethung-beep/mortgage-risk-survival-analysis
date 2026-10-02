@@ -44,14 +44,14 @@ _VARIABLE_LABELS = {
     "lag_dq_2m": "Trễ hạn 2 tháng (tháng trước)",
 }
 _GLOSSARY = {
-    "PD(t)": "Xác suất đã vỡ nợ tích lũy đến thời điểm t.",
-    "CIF": "Xác suất một kết cục đã xảy ra đến thời điểm t, có tính đến sự kiện cạnh tranh.",
-    "KM": "Kaplan–Meier: ước lượng xác suất chưa gặp sự kiện theo thời gian.",
-    "1 − KM": "Xác suất có sự kiện theo Kaplan–Meier khi sự kiện cạnh tranh được kiểm duyệt.",
-    "HR": "Tỷ số hazard tức thời. HR = 1 là mốc tham chiếu; HR > 1 hoặc < 1 biểu thị hazard cao hơn hoặc thấp hơn.",
-    "SHR": "Tỷ số subdistribution hazard trong Fine–Gray, có xét sự kiện cạnh tranh.",
-    "CI": "Khoảng tin cậy 95%. Nếu khoảng chứa 1 thì chưa có bằng chứng rõ về liên hệ khác 1.",
-    "p-value": "Mức bằng chứng thống kê; p < 0,05 thường được xem là có ý nghĩa danh nghĩa.",
+    "PD(t)": "Tỷ lệ khoản vay đã vỡ nợ tính lũy kế đến thời điểm t.",
+    "CIF": "Xác suất tích lũy của một kết cục, có tính đến khả năng khoản vay kết thúc vì một kết cục khác.",
+    "KM": "Phương pháp Kaplan–Meier ước tính tỷ lệ khoản vay chưa gặp kết cục đang xét theo thời gian.",
+    "1 − KM": "Tỷ lệ ước tính đã gặp kết cục theo Kaplan–Meier; các kết cục khác được xem là ngừng theo dõi.",
+    "HR": "Tỷ số so sánh tốc độ xảy ra kết cục giữa các nhóm. HR = 1 là tương đương; lớn hơn 1 là nhanh hơn, nhỏ hơn 1 là chậm hơn.",
+    "SHR": "Tỷ số so sánh trong mô hình Fine–Gray, có xét đến các khoản vay kết thúc vì kết cục cạnh tranh.",
+    "CI": "Khoảng tin cậy thể hiện độ bất định quanh ước lượng. Với HR/SHR, khoảng chứa 1 chưa cho thấy khác biệt rõ giữa các nhóm.",
+    "p-value": "Chỉ số đánh giá bằng chứng thống kê; không phải xác suất khoản vay sẽ vỡ nợ.",
 }
 
 
@@ -162,6 +162,29 @@ def _render_glossary(keys: list[str]) -> None:
         )
 
 
+def _method_note(title: str, question: str, method: str, reading: str, limit: str) -> None:
+    """Show a plain-language method guide next to the chart it explains."""
+    parts = [
+        ("Câu hỏi phân tích", question),
+        ("Phương pháp", method),
+        ("Cách đọc", reading),
+        ("Giới hạn", limit),
+    ]
+    rows = "".join(
+        '<div style="margin-top:7px;line-height:1.55;">'
+        f'<strong style="color:{NAVY};">{html.escape(label)}:</strong> '
+        f'<span style="color:#536056;">{html.escape(text)}</span></div>'
+        for label, text in parts
+    )
+    st.markdown(
+        '<div style="background:#F6F3E9;border:1px solid #DCD7C8;border-left:4px solid '
+        f'#637E69;border-radius:4px;padding:12px 16px;margin:4px 0 12px;">'
+        f'<strong style="color:{NAVY};font-family:Lora,Georgia,serif;">{html.escape(title)}</strong>'
+        f'{rows}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
     section_heading(
         1,
@@ -191,6 +214,13 @@ def _render_default_cif() -> tuple[pd.DataFrame, pd.DataFrame]:
                 )
 
     _render_glossary(["PD(t)", "CIF"])
+    _method_note(
+        "Ước lượng xác suất tích lũy · Aalen–Johansen (CIF)",
+        "Tỷ lệ vỡ nợ tích lũy của danh mục thay đổi thế nào theo thời gian, khi một khoản vay cũng có thể kết thúc bằng ZBC 01?",
+        "Aalen–Johansen cộng dồn các khoản vỡ nợ theo từng tháng, đồng thời tính đến những khoản đã kết thúc vì ZBC 01. Sau khi kết thúc, khoản vay không còn được xem là có thể vỡ nợ trong các tháng tiếp theo. Đây là điểm giúp phương pháp phản ánh các loại kết cục cạnh tranh trong cùng danh mục.",
+        "Trục ngang thể hiện số tháng theo dõi; trục dọc là tỷ lệ vỡ nợ tích lũy. Đường càng cao, tỷ lệ khoản vay đã vỡ nợ tính đến thời điểm đó càng lớn. Dải quanh đường, nếu có, thể hiện khoảng bất định của ước lượng.",
+        "Kết quả mô tả toàn bộ nhóm nghiên cứu, không phải dự báo chắc chắn cho từng khoản vay. ZBC 01 gộp trả trước và đáo hạn; mốc bắt đầu được xác định bằng First Payment Date trừ một tháng, do dữ liệu không cung cấp ngày giải ngân trực tiếp.",
+    )
     chart_data = aj.copy()
     if not chart_data.empty:
         with st.container(border=True):
@@ -226,6 +256,13 @@ def _render_competing_risk_comparison(
         & (pd.to_numeric(cif_display["analysis_time"], errors="coerce") <= last_horizon)
     ].copy()
     _render_glossary(["KM", "1 − KM", "CIF"])
+    _method_note(
+        "So sánh hai cách ước lượng · Kaplan–Meier và Aalen–Johansen",
+        "Cách xử lý ZBC 01 ảnh hưởng thế nào đến ước lượng tỷ lệ vỡ nợ tích lũy?",
+        "Kaplan–Meier xem khoản vay kết thúc bằng ZBC 01 là ngừng theo dõi. Aalen–Johansen xem đây là một kết cục riêng có thể xảy ra thay cho vỡ nợ. Vì vậy, hai phương pháp đưa ra các ước lượng cho hai cách đặt vấn đề khác nhau.",
+        "Đối chiếu hai đường tại cùng một mốc thời gian. Nếu đường 1 − KM cao hơn, phương pháp Kaplan–Meier ước lượng tỷ lệ vỡ nợ cao hơn khi ZBC 01 được xem là ngừng theo dõi. Khoảng cách giữa hai đường không phải thước đo độ chính xác của mô hình.",
+        "Khi câu hỏi nghiên cứu cần tính đến việc khoản vay có thể kết thúc theo nhiều cách, Aalen–Johansen phù hợp hơn để mô tả xác suất tích lũy quan sát được. 1 − KM không phải xác suất vỡ nợ riêng của từng khoản vay.",
+    )
     with st.container(border=True):
         st.plotly_chart(km_vs_cif_compare_chart(km_display, cif_display), width="stretch")
 
@@ -320,6 +357,9 @@ def _render_factor_analysis() -> str:
         sub = sub[sub["endpoint"] == endpoint]
 
     metric = "SHR" if model_type == "Fine-Gray" else "HR"
+    endpoint_key = str(endpoint).strip().upper() if endpoints else "DEFAULT"
+    endpoint_label = "ZBC 01 (trả trước/đáo hạn gộp)" if "PREPAY" in endpoint_key else "Default"
+    competing_label = "Default" if "PREPAY" in endpoint_key else "ZBC 01 (trả trước/đáo hạn gộp)"
     effect_column = "hr_shr" if "hr_shr" in sub.columns else None
     if effect_column is None or "variable" not in sub.columns:
         st.info("Bảng hệ số chưa có các cột cần hiển thị.")
@@ -327,6 +367,40 @@ def _render_factor_analysis() -> str:
 
     plot_df = sub.copy()
     plot_df["variable"] = plot_df["variable"].astype(str).map(_variable_label)
+    if model_type == "Fine-Gray":
+        method = (
+            f"Fine–Gray ước lượng mối liên hệ giữa đặc điểm khoản vay và {endpoint_label}, đồng thời tính đến khả năng khoản vay kết thúc vì {competing_label}. "
+            "Phương pháp này phù hợp khi câu hỏi quan tâm đến xác suất tích lũy của một kết cục trong bối cảnh có kết cục cạnh tranh."
+        )
+        reading = "SHR = 1 là mốc tham chiếu. SHR lớn hơn 1 cho thấy mối liên hệ với tỷ lệ tích lũy cao hơn; nhỏ hơn 1 cho thấy mối liên hệ với tỷ lệ thấp hơn, khi các yếu tố khác được giữ cố định."
+        limit = "SHR không phải xác suất hay mức tăng tính bằng điểm phần trăm. SHR = 1,2 không có nghĩa xác suất vỡ nợ tăng 20 điểm phần trăm; kết quả cũng không chứng minh quan hệ nhân quả."
+    elif model_type == "Cause-specific Hazard":
+        method = (
+            f"Mô hình này tập trung vào tốc độ xảy ra {endpoint_label}. Khoản vay kết thúc vì {competing_label} được tính là đã rời khỏi nhóm có thể gặp kết cục đang xét từ thời điểm đó."
+        )
+        reading = f"HR so sánh tốc độ xảy ra {endpoint_label} giữa các khoản vay còn đang được theo dõi. HR = 1,2 tương ứng tốc độ ước tính cao hơn khoảng 20% so với mốc tham chiếu."
+        limit = "HR không phải xác suất khoản vay sẽ gặp kết cục. Đây là mối liên hệ trong dữ liệu, không chứng minh một đặc điểm gây ra kết cục."
+    elif model_type == "Time-varying Cox":
+        method = (
+            f"Mô hình Cox này cho phép một số thông tin khoản vay thay đổi theo tháng khi phân tích {endpoint_label}. "
+            "Trong dự án, số dư, lãi suất và tình trạng trễ hạn của tháng trước được dùng để xem xét mối liên hệ với kết cục ở thời điểm sau."
+        )
+        reading = "HR lớn hơn 1 cho thấy tốc độ xảy ra kết cục cao hơn theo mô hình; nhỏ hơn 1 cho thấy thấp hơn, khi so sánh các hồ sơ tương tự về những yếu tố khác."
+        limit = "HR không phải xác suất cá nhân. Thông tin tháng trước cũng có thể không phản ánh đầy đủ tình trạng khoản vay ở tháng hiện tại."
+    else:
+        method = (
+            f"Cox PH so sánh tốc độ xảy ra {endpoint_label} theo các đặc điểm ban đầu của khoản vay. "
+            "Mô hình giả định mức chênh lệch giữa các nhóm tương đối ổn định trong suốt thời gian theo dõi."
+        )
+        reading = "HR = 1 là mốc tham chiếu. HR = 1,2 tương ứng tốc độ ước tính cao hơn khoảng 20%; HR = 0,8 tương ứng thấp hơn khoảng 20%."
+        limit = "Nếu kiểm định có cảnh báo, chênh lệch có thể thay đổi theo thời gian nên không nên xem HR là con số cố định. HR không phải xác suất cá nhân và không chứng minh quan hệ nhân quả."
+    _method_note(
+        f"Phương pháp đang chọn · {_MODEL_LABELS.get(model_type, model_type)} · thước đo {metric}",
+        f"Đặc điểm nào có liên hệ với tốc độ xảy ra {endpoint_label}?",
+        method,
+        reading,
+        limit,
+    )
     with st.container(border=True):
         st.plotly_chart(forest_plot(plot_df), width="stretch")
 
