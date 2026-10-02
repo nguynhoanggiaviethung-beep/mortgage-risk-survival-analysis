@@ -188,6 +188,38 @@ def get_pd_results(group=None, group_value=None) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def get_grouped_pd_results(group: str, group_value: str | None = None) -> pd.DataFrame:
+    """Load subgroup CIF estimates directly, independently of portfolio PD rows."""
+    feature = {"credit_score_band": "fico_band"}.get(group, group)
+    release = _current_release()
+    if release is not None:
+        frame = _to_pandas(grouped_pd_results(release))
+    else:
+        frame = _legacy("grouped_pd_horizons")
+        if frame.empty:
+            return frame
+
+    frame = frame.rename(columns={
+        "feature": "group",
+        "horizon_months": "horizon",
+        "default_cif": "cif_default",
+        "prepayment_cif": "cif_prepayment",
+        "n_at_risk": "number_at_risk",
+    }).copy()
+    if "follow_up_eligible" in frame.columns:
+        frame["follow_up_flag"] = frame["follow_up_eligible"]
+    if "group" not in frame.columns:
+        return pd.DataFrame()
+    frame = frame[frame["group"].astype(str).str.strip().str.casefold() == str(feature).strip().casefold()]
+    if group_value is not None and "group_value" in frame.columns:
+        # Older exports may use a hyphen or en dash for the same score interval.
+        normalize = lambda value: str(value).strip().replace("–", "-").replace("—", "-").casefold()
+        expected = normalize(group_value)
+        frame = frame[frame["group_value"].map(normalize) == expected]
+    return frame.reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False)
 def get_survival_results(group: str | None = None) -> pd.DataFrame:
     release = _current_release()
     if release is None:

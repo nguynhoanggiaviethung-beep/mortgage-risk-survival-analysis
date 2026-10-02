@@ -10,8 +10,7 @@ Nội dung trang:
   5. Heatmap rủi ro theo nhóm x horizon
   6. Chiều nào phân biệt rủi ro mạnh nhất
   7. Bảng chi tiết + nhận xét tự động
-  8. Xu hướng theo Origination Vintage (vintage_results)
-  9. Ghi chú phương pháp
+  8. Ghi chú phương pháp
 """
 
 import html
@@ -152,8 +151,8 @@ def _render_intro() -> None:
             <b>Tỷ lệ vỡ nợ tích lũy (Default CIF)</b> là xác suất một khoản vay
             <b>đã vỡ nợ</b> trong vòng <i>t</i> tháng kể từ thời điểm giải ngân, có tính đến việc khoản vay
             cũng có thể ghi nhận <b>ZBC 01</b> trước khi Default.
-            Đây chính là <b>PD(t)</b> của dự án. Trang hiển thị PD theo năm giải ngân (Vintage) và các mốc theo dõi
-            có đủ dữ liệu; các đường CIF theo FICO, LTV và DTI được ước lượng riêng cho từng nhóm.
+            Đây chính là <b>PD(t)</b> của dự án. Trang so sánh CIF tại các mốc theo dõi có đủ dữ liệu
+            giữa các nhóm FICO, LTV, DTI, lãi suất và kỳ hạn vay.
           </div>
         </div>
         """,
@@ -173,7 +172,6 @@ def render() -> None:
             "Chưa có pd_results hợp lệ (cần các cột: horizon, group, group_value, cif_default). "
             "Trang sẽ hiển thị đầy đủ khi dataset này được xuất bản vào thư mục query/."
         )
-        _render_vintage_section(None)
         return
 
     pd_raw = pd_raw.copy()
@@ -204,7 +202,6 @@ def render() -> None:
                 for col, (_, row) in zip(cols, eligible.iterrows()):
                     with col:
                         st.metric(f"{int(row['horizon'])} tháng", _pct(row["cif_default"]))
-        _render_vintage_section(None)
         return
 
     # ---- chiều so sánh khả dụng ------------------------------------------------
@@ -232,7 +229,6 @@ def render() -> None:
     sub = dim_all[dim_all["horizon"] == horizon].copy()
     if sub.empty:
         st.info(f"Chưa có bản ghi cho '{dim_label}' tại mốc {horizon} tháng.")
-        _render_vintage_section(None)
         return
 
     # A CIF is an estimate for a defined group/horizon; averaging duplicate
@@ -249,7 +245,6 @@ def render() -> None:
 
     if sub.empty or sub[metric].dropna().empty:
         st.info(f"Không nhóm nào có đủ dữ liệu quan sát để ước lượng tại mốc {horizon} tháng.")
-        _render_vintage_section(None)
         return
 
     sub = sub.sort_values("group_value", key=lambda s: s.map(_band_key)).reset_index(drop=True)
@@ -572,9 +567,6 @@ def render() -> None:
         unsafe_allow_html=True
     )
 
-    # ---- Vintage ------------------------------------------------------------------------------
-    _render_vintage_section(horizon)
-
     # ---- Ghi chú phương pháp ----------------------------------------------------------------------
     with st.expander("Ghi chú phương pháp & giới hạn diễn giải"):
         st.markdown(
@@ -606,102 +598,3 @@ def render() -> None:
         )
 
 
-def _render_vintage_section(selected_horizon) -> None:
-    v = ds.get_vintage_results()
-    if v.empty:
-        st.info("Chưa có dữ liệu Origination Vintage để hiển thị.")
-        return
-
-    required_vintage = {"vintage", "horizon", "default_cif"}
-    if not required_vintage.issubset(v.columns):
-        missing = required_vintage - set(v.columns)
-        st.warning("Dữ liệu Vintage đang thiếu cột: " + ", ".join(sorted(missing)))
-        return
-
-    section_title(
-        "So sánh rủi ro theo năm giải ngân",
-        "Chọn một mốc theo dõi để so sánh các nhóm khoản vay cùng tuổi quan sát; khoảng tin cậy thể hiện độ bất định."
-    )
-    v = v.copy()
-    v["horizon"] = v["horizon"].astype(int)
-    chart_data = v.copy()
-    if "follow_up_eligible" in chart_data.columns:
-        chart_data = chart_data[_to_bool_series(chart_data["follow_up_eligible"])].copy()
-
-    if chart_data.empty:
-        st.info("Chưa có năm giải ngân (Vintage) nào đủ điều kiện theo dõi tại các mốc thời gian được báo cáo.")
-        return
-
-    available_horizons = sorted(chart_data["horizon"].dropna().astype(int).unique().tolist())
-    if not available_horizons:
-        st.info("Chưa có mốc theo dõi nào đủ dữ liệu.")
-        return
-    default_h = int(selected_horizon) if selected_horizon in available_horizons else available_horizons[0]
-    chosen_horizon = st.selectbox(
-        "Mốc theo dõi để so sánh",
-        available_horizons,
-        index=available_horizons.index(default_h),
-        format_func=lambda h: f"{h} tháng",
-        key="vintage_trend_horizon",
-    )
-    fig = go.Figure()
-    vintage_palette = [COLOR_RISK_HIGH]
-    vintage_curves = ds.get_aj_curves(endpoint="DEFAULT", group_name="vintage_year")
-    d = chart_data[chart_data["horizon"] == chosen_horizon].sort_values("vintage").copy()
-    lows, highs = [], []
-    for _, row in d.iterrows():
-        curve = vintage_curves[
-            (vintage_curves["group_value"].astype(str) == str(int(row["vintage"])))
-            & (pd.to_numeric(vintage_curves["analysis_time"], errors="coerce") <= chosen_horizon)
-        ].sort_values("analysis_time") if not vintage_curves.empty else pd.DataFrame()
-        point = curve.iloc[-1] if not curve.empty else None
-        lows.append(float(point["ci_lower"]) if point is not None and pd.notna(point.get("ci_lower")) else None)
-        highs.append(float(point["ci_upper"]) if point is not None and pd.notna(point.get("ci_upper")) else None)
-    values = pd.to_numeric(d["default_cif"], errors="coerce").tolist()
-    customdata = np.column_stack([
-        pd.to_numeric(d[c], errors="coerce").to_numpy() if c in d.columns else np.full(len(d), np.nan)
-        for c in ("loan_count", "n_at_risk", "default_count")
-    ])
-    fig.add_trace(go.Scatter(
-        x=d["vintage"].astype(str), y=values, mode="markers",
-        name=f"Vỡ nợ tích lũy sau {chosen_horizon} tháng",
-        marker=dict(size=9, color=COLOR_RISK_HIGH),
-        error_y=dict(
-            type="data", symmetric=False,
-            array=[max(0, hi - val) if hi is not None and pd.notna(val) else 0 for hi, val in zip(highs, values)],
-            arrayminus=[max(0, val - lo) if lo is not None and pd.notna(val) else 0 for lo, val in zip(lows, values)],
-            visible=any(value is not None for value in highs), color=COLOR_RISK_HIGH,
-        ),
-        customdata=customdata,
-        hovertemplate="Năm giải ngân: %{x}<br>Xác suất vỡ nợ tích lũy: %{y:.2%}<br>Số khoản trong nhóm: %{customdata[0]:,.0f}<br>Số khoản còn theo dõi: %{customdata[1]:,.0f}<br>Số ca vỡ nợ quan sát được: %{customdata[2]:,.0f}<extra></extra>",
-    ))
-    positive = [v for v in values + [v for v in highs if v is not None] if pd.notna(v) and v >= 0]
-    y_max = min(1.0, max(0.01, (max(positive) * 1.12 if positive else 0.05)))
-    fig.update_yaxes(title=dict(text="Xác suất vỡ nợ tích lũy", font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), tickformat=".1%", range=[0, y_max])
-    fig.update_xaxes(title=dict(text="Năm giải ngân khoản vay", font=dict(family=FONT_STACK, color=COLOR_TEXT_DARK, size=13)), type="category")
-    _chart_card_open()
-    st.plotly_chart(_layout(fig), use_container_width=True)
-    _chart_card_close()
-
-    st.caption(
-        "Chỉ hiển thị vintage đủ hỗ trợ ước lượng ở mốc đã chọn; năm không xuất hiện không được hiểu là rủi ro bằng 0. "
-        "Khác biệt giữa các năm là mô tả, không chứng minh nguyên nhân."
-    )
-
-    with st.expander("Bảng dữ liệu Vintage chi tiết (bao gồm trạng thái theo dõi)"):
-        v_renamed = v.rename(columns={
-            "vintage": "Năm giải ngân",
-            "horizon": "Mốc theo dõi (tháng)",
-            "default_cif": "Xác suất vỡ nợ tích lũy",
-            "prepayment_cif": "CIF ZBC 01 (trả trước/đáo hạn gộp)",
-            "loan_count": "Số khoản vay",
-            "n_at_risk": "Số khoản còn theo dõi",
-            "default_count": "Số ca vỡ nợ",
-            "prepayment_count": "Số ca trả trước",
-            "follow_up_eligible": "Đủ điều kiện theo dõi"
-        })
-        st.dataframe(
-            v_renamed.sort_values(["Năm giải ngân", "Mốc theo dõi (tháng)"]).reset_index(drop=True),
-            hide_index=True,
-            use_container_width=True
-        )

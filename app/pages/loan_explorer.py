@@ -370,7 +370,20 @@ def _render_loan_profile(loan_id: str) -> None:
     section_heading(
         5,
         "So sánh với nhóm FICO tương đồng",
-        "CIF nhóm là mức tích lũy mô tả của nhóm, không phải PD cá nhân của khoản vay này.",
+        "Đặt hồ sơ đang tra cứu cạnh nhóm khoản vay có điểm FICO trong cùng khoảng.",
+    )
+    callout(
+        "<strong>Nhóm tham chiếu được xác định như thế nào?</strong> "
+        "Hệ thống xếp điểm FICO của khoản vay vào một khoảng: dưới 650, 650–699, 700–749 hoặc từ 750 trở lên. "
+        "Ví dụ: hồ sơ có FICO 686 được so với các khoản vay thuộc khoảng 650–699. Nhóm này tương tự về khoảng điểm FICO; "
+        "không có nghĩa các khoản vay giống nhau về LTV, DTI, lãi suất, kỳ hạn hay năm giải ngân."
+        "<br><br><strong>Kết quả cho biết điều gì?</strong> "
+        "Các con số bên dưới là tỷ lệ vỡ nợ tích lũy ước tính của toàn nhóm tại từng mốc theo dõi, chẳng hạn 12 hoặc 24 tháng. "
+        "Cách tính có xét việc một khoản vay có thể kết thúc bằng ZBC 01; mã này gộp trả trước và đáo hạn trong dữ liệu."
+        "<br><br><strong>Cần hiểu kết quả ra sao?</strong> "
+        "Đây là số liệu tham khảo để đặt hồ sơ vào bối cảnh nhóm, không phải xác suất vỡ nợ riêng của khoản vay đang tra cứu "
+        "và cũng không phải so sánh đã điều chỉnh để mọi đặc điểm khác đều giống nhau. Nếu nhóm không có đủ thời gian theo dõi "
+        "ở một mốc, hệ thống sẽ không đưa ra ước lượng cho mốc đó thay vì tự suy diễn kết quả."
     )
     score = p.get("credit_score")
     if pd.isna(score):
@@ -378,9 +391,12 @@ def _render_loan_profile(loan_id: str) -> None:
         return
 
     band = _credit_score_band(float(score))
-    comparison = ds.get_pd_results(group="credit_score_band", group_value=band)
+    comparison = ds.get_grouped_pd_results(group="fico_band", group_value=band)
     if comparison.empty:
-        st.info(f"Chưa tìm thấy kết quả đã công bố cho nhóm FICO {band}. Điều này không có nghĩa là nhóm không phát sinh vỡ nợ.")
+        st.info(
+            f"Chưa tải được bảng kết quả CIF theo nhóm FICO {band}. "
+            "Điều này không có nghĩa nhóm không phát sinh vỡ nợ; cần kiểm tra artifact grouped_pd_horizons của bản dữ liệu đang dùng."
+        )
         return
     if "follow_up_status" in comparison.columns:
         supported = comparison["follow_up_status"].astype(str).str.upper().eq("ELIGIBLE")
@@ -417,6 +433,61 @@ def _render_loan_profile(loan_id: str) -> None:
                 RED,
                 TINT_RED,
             )
+    numeric = comparison.copy()
+    numeric["horizon"] = pd.to_numeric(numeric["horizon"], errors="coerce")
+    numeric["cif_default"] = pd.to_numeric(numeric["cif_default"], errors="coerce")
+    numeric = numeric.dropna(subset=["horizon", "cif_default"]).sort_values("horizon")
+    if not numeric.empty:
+        first = numeric.iloc[0]
+        last = numeric.iloc[-1]
+        first_horizon, last_horizon = int(first["horizon"]), int(last["horizon"])
+        first_cif, last_cif = float(first["cif_default"]), float(last["cif_default"])
+        if len(numeric) > 1:
+            change_pp = (last_cif - first_cif) * 100
+            if change_pp > 0.005:
+                change_text = f"cao hơn {change_pp:.2f} điểm phần trăm"
+            elif change_pp < -0.005:
+                change_text = f"thấp hơn {abs(change_pp):.2f} điểm phần trăm"
+            else:
+                change_text = "gần như bằng với ước lượng tại mốc trước"
+            commentary = (
+                f"Trong nhóm FICO {band}, kết quả tại tháng thứ {first_horizon} tương đương khoảng "
+                f"{first_cif * 100:.2f} khoản vỡ nợ trên mỗi 100 khoản. Tại tháng thứ {last_horizon}, "
+                f"ước lượng là {last_cif * 100:.2f} khoản trên mỗi 100. "
+                f"So với mốc {first_horizon} tháng, ước lượng tại mốc {last_horizon} tháng {change_text}."
+            )
+            if abs(change_pp) <= 0.005:
+                commentary = (
+                    f"Trong nhóm FICO {band}, Default CIF ước tính là {first_cif:.2%} tại tháng thứ "
+                    f"{first_horizon} và {last_cif:.2%} tại tháng thứ {last_horizon}; hai ước lượng "
+                    "này gần như bằng nhau."
+                )
+            commentary += (
+                " Đây là tỷ lệ tích lũy của cả nhóm tại từng mốc, không phải mức tăng mỗi năm "
+                "hay xác suất riêng của khoản vay đang tra cứu. Phép tính có xét ZBC 01 là một "
+                "kết cục cạnh tranh; mã này gộp trả trước và đáo hạn."
+            )
+            at_risk_col = "number_at_risk" if "number_at_risk" in numeric.columns else "n_at_risk"
+            if at_risk_col in numeric.columns:
+                first_at_risk = pd.to_numeric(pd.Series([first.get(at_risk_col)]), errors="coerce").iloc[0]
+                last_at_risk = pd.to_numeric(pd.Series([last.get(at_risk_col)]), errors="coerce").iloc[0]
+                if pd.notna(first_at_risk) and pd.notna(last_at_risk):
+                    commentary += (
+                        f"\n\nSố khoản còn đang được theo dõi và vẫn có thể phát sinh kết cục là "
+                        f"{int(first_at_risk):,} tại tháng thứ {first_horizon} và "
+                        f"{int(last_at_risk):,} tại tháng thứ {last_horizon}. Đây là số khoản chưa "
+                        "kết thúc ngay trước mỗi mốc; phần giảm có thể gồm "
+                        "khoản đã vỡ nợ, khoản kết thúc bằng ZBC 01 hoặc khoản hết thời gian quan sát. "
+                        "Vì vậy, không thể hiểu toàn bộ phần giảm là số khoản vỡ nợ."
+                    )
+        else:
+            commentary = (
+                f"Tại tháng thứ {first_horizon}, tỷ lệ vỡ nợ tích lũy ước tính của nhóm FICO {band} là {first_cif:.2%} "
+                f"(tương đương {first_cif * 100:.2f} khoản trên mỗi 100 khoản). Đây là tỷ lệ tích lũy "
+                "của nhóm, không phải xác suất riêng của hồ sơ đang tra cứu. Chỉ có một mốc đủ điều kiện "
+                "hiển thị nên chưa thể nhận xét sự thay đổi theo thời gian."
+            )
+        callout(f"<strong>Nhận xét theo số liệu hiển thị</strong><br>{commentary.replace(chr(10), '<br>')}")
     st.caption(
         f"Khoản vay có FICO {float(score):.0f}, thuộc nhóm {band}. Đây là CIF theo nhóm tham chiếu, "
         "không phải xác suất vỡ nợ riêng của khoản vay đang tra cứu."
